@@ -6,7 +6,7 @@ from io import BytesIO
 import requests
 
 # URL to the Human Resources Excel file (replace with your link)
-HR_FILE_URL = "https://khatibandalami-my.sharepoint.com/:x:/g/personal/ahmedsayed_soliman_khatibalami_com/EXQjPzZs9h5Nly5JKGQQmCEBy0AiSl0t6QWg_xcDOP6-Mw?e=0IsYY9"  # Replace with your direct link
+HR_FILE_URL = "https://khatibandalami-my.sharepoint.com/:x:/g/personal/ahmedsayed_soliman_khatibalami_com/EXQjPzZs9h5Nly5JKGQQmCEBy0AiSl0t6QWg_xcDOP6-Mw?e=umVd3S"  # Replace with your direct link
 PROJECTS_FILE = "projects_data_weekly.xlsx"  # Local file for project data
 
 # Function to read Excel data directly from a URL
@@ -14,12 +14,16 @@ def load_excel_from_url(url):
     try:
         response = requests.get(url)
         if response.status_code == 200:
-            return pd.read_excel(BytesIO(response.content))
+            # Specify the engine for .xlsx files
+            return pd.read_excel(BytesIO(response.content), engine="openpyxl")
         else:
             st.error(f"Failed to fetch file: HTTP {response.status_code}")
             return pd.DataFrame()
-    except Exception as e:
+    except ValueError as e:
         st.error(f"Error reading data from URL: {e}")
+        return pd.DataFrame()
+    except Exception as e:
+        st.error(f"Unexpected error: {e}")
         return pd.DataFrame()
 
 # Load or create project data
