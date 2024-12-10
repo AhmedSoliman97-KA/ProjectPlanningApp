@@ -4,7 +4,7 @@ import requests
 from io import BytesIO
 
 # OneDrive file download link (replace with your link)
-ONEDRIVE_LINK = "https://khatibandalami-my.sharepoint.com/:f:/g/personal/ahmedsayed_soliman_khatibalami_com/EpxIyzwnrYdNqoneD-qC9ioBRyd4FBcvlpL9HrZhPfI2vg?e=6scK2w"
+ONEDRIVE_LINK = "https://khatibandalami-my.sharepoint.com/:x:/g/personal/ahmedsayed_soliman_khatibalami_com/EXQjPzZs9h5Nly5JKGQQmCEB-_KVir0yZEIteOqCa4epqA?e=YkcCOe"
 
 # Load data from OneDrive
 def load_excel_from_onedrive(link):
