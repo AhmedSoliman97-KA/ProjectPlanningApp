@@ -7,7 +7,7 @@ import requests
 
 
 # URL to the Human Resources Excel file (replace with your link)
-HR_FILE_URL ="https://khatibandalami-my.sharepoint.com/:x:/g/personal/ahmedsayed_soliman_khatibalami_com/EXQjPzZs9h5Nly5JKGQQmCEBs2p3CemxDu-LIWkMnENS-A?e=9NJooW"  # Replace with your direct link
+HR_FILE_URL = "https://khatibandalami-my.sharepoint.com/personal/ahmedsayed_soliman_khatibalami_com/_layouts/15/download.aspx?SourceUrl=https://khatibandalami-my.sharepoint.com/personal/ahmedsayed_soliman_khatibalami_com/EXQjPzZs9h5Nly5JKGQQmCEBs2p3CemxDu-LIWkMnENS-A"
 PROJECTS_FILE = "projects_data_weekly.xlsx"  # Local file for project data
 
 # Function to read Excel data directly from a URL
