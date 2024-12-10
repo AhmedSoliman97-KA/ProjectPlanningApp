@@ -4,10 +4,10 @@ from datetime import datetime, timedelta
 from calendar import month_name
 
 # Paths to Excel files
-PROJECTS_FILE = "projects_data_weekly.xlsx"  # To store project allocations
+PROJECTS_FILE = "projects_data_weekly.xlsx"  # For storing project allocations
 HR_FILE = "Human Resources.xlsx"  # To fetch engineers and their details
 
-# Load data from an Excel file
+# Load data from Excel file
 def load_data(file_path, sheet_name=None):
     try:
         if sheet_name:
@@ -20,17 +20,17 @@ def load_data(file_path, sheet_name=None):
         st.error(f"Error loading file '{file_path}': {e}")
         return None
 
-# Save data to an Excel file
+# Save data back to Excel
 def save_to_excel(data, file_path):
     try:
         data.to_excel(file_path, index=False)
     except Exception as e:
         st.error(f"Failed to save data: {e}")
 
-# Generate weeks for a specific month and year
+# Generate weekly labels for a given year and month
 def generate_weeks_for_month(year, month):
     start_date = datetime(year, month, 1)
-    end_date = (start_date + timedelta(days=31)).replace(day=1)  # Move to next month
+    end_date = (start_date + timedelta(days=31)).replace(day=1)
     weeks = []
     while start_date < end_date:
         week_label = f"Week {start_date.isocalendar()[1]} - {year}"
@@ -47,7 +47,7 @@ def main():
     if hr_sections is None:
         st.stop()
 
-    # Load existing projects
+    # Load existing project data
     try:
         project_data = load_data(PROJECTS_FILE)
     except FileNotFoundError:
@@ -64,29 +64,32 @@ def main():
 
     # Step 2: Select Section
     st.subheader("Step 2: Select Section")
-    sections = load_data(HR_FILE)
-    selected_section = st.selectbox("Select a Section", hr_sections)
+    sections = load_data(HR_FILE, None)
+    if sections is None:
+        st.error("No sections found in the HR file.")
+        st.stop()
+    selected_section = st.selectbox("Select a Section", sections)
 
-    # Filter engineers based on the selected section
+    # Filter engineers by the selected section
     engineers_data = load_data(HR_FILE, sheet_name=selected_section)
     if engineers_data is None or "Name" not in engineers_data.columns:
-        st.error(f"Section {selected_section} doesn't have a valid 'Name' column")
+        st.error(f"Section '{selected_section}' doesn't have a valid 'Name' column.")
         st.stop()
     engineer_names = engineers_data["Name"].dropna().tolist()
 
     if action == "Create New Project":
         st.subheader("Step 3: Create New Project")
 
-        # Collect project details
-        project_id = st.text_input("Project ID", help="Enter the unique ID for the project.")
-        project_name = st.text_input("Project Name", help="Enter the unique name of the project.")
+        # Input project details
+        project_id = st.text_input("Project ID", help="Unique ID for the project.")
+        project_name = st.text_input("Project Name", help="Name of the project.")
         year = st.selectbox("Year", range(datetime.now().year - 5, datetime.now().year + 6))
         month = st.selectbox("Month", list(month_name)[1:])
         month_index = list(month_name).index(month)
 
         weeks = generate_weeks_for_month(year, month_index)
 
-        # Assign hours for engineers
+        # Assign weekly hours for engineers
         st.subheader("Step 4: Assign Weekly Budgeted Hours")
         if "new_project_allocations" not in st.session_state:
             st.session_state.new_project_allocations = []
@@ -94,15 +97,14 @@ def main():
         for engineer in engineer_names:
             st.markdown(f"**{engineer}**")
             for week_label, _ in weeks:
-                hours = st.number_input(f"{week_label} Hours", min_value=0, step=1, key=f"{engineer}_{week_label}")
+                hours = st.number_input(f"{week_label} Hours for {engineer}", min_value=0, step=1,
+                                        key=f"{engineer}_{week_label}")
                 if hours > 0:
                     st.session_state.new_project_allocations.append(
-                        {"Project ID": project_id, "Project Name": project_name,
-                         "Personnel": engineer, "Week": week_label,
-                         "Year": year, "Month": month, "Budgeted Hrs": hours}
+                        {"Project ID": project_id, "Project Name": project_name, "Personnel": engineer,
+                         "Week": week_label, "Year": year, "Month": month, "Budgeted Hrs": hours}
                     )
 
-        # Save new project
         if st.button("Submit Project"):
             new_data = pd.DataFrame(st.session_state.new_project_allocations)
             project_data = pd.concat([project_data, new_data], ignore_index=True)
@@ -117,6 +119,7 @@ def main():
 
         if selected_project:
             project_allocations = project_data[project_data["Project Name"] == selected_project]
+            updated_data = []
             for i, row in project_allocations.iterrows():
                 st.markdown(f"**{row['Personnel']} ({row['Week']})**")
                 col1, col2 = st.columns(2)
@@ -128,15 +131,20 @@ def main():
                     spent_hours = st.number_input(
                         "Spent Hours", min_value=0, value=row.get("Spent Hrs", 0), step=1, key=f"spent_{i}"
                     )
-                project_data.loc[i, "Budgeted Hrs"] = budgeted_hours
-                project_data.loc[i, "Spent Hrs"] = spent_hours
+                updated_data.append({
+                    "Project ID": row["Project ID"], "Project Name": row["Project Name"], "Personnel": row["Personnel"],
+                    "Week": row["Week"], "Year": row["Year"], "Month": row["Month"],
+                    "Budgeted Hrs": budgeted_hours, "Spent Hrs": spent_hours
+                })
 
-            # Save updates
             if st.button("Save Updates"):
-                save_to_excel(project_data, PROJECTS_FILE)
+                updated_df = pd.DataFrame(updated_data)
+                remaining_data = project_data[project_data["Project Name"] != selected_project]
+                final_data = pd.concat([remaining_data, updated_df], ignore_index=True)
+                save_to_excel(final_data, PROJECTS_FILE)
                 st.success(f"Project '{selected_project}' updated successfully!")
 
-    # Display project summary
+    # Display summary of projects
     st.subheader("Summary of Projects")
     if not project_data.empty:
         st.dataframe(project_data)
@@ -145,4 +153,3 @@ def main():
 
 if __name__ == "__main__":
     main()
- 
