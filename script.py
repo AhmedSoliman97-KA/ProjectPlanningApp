@@ -1,32 +1,28 @@
 import streamlit as st
 import pandas as pd
-from io import BytesIO
-import requests
 from datetime import datetime, timedelta
 from calendar import month_name
+from io import BytesIO
+import requests
 
-# Constants
-HR_FILE_URL = "https://khatibandalami-my.sharepoint.com/:x:/g/personal/ahmedsayed_soliman_khatibalami_com/EXQjPzZs9h5Nly5JKGQQmCEBwUwLYFIcvfaz2iInFZU_WA?e=0Mvfqt"  # Replace with your direct link
-HR_FILE_PATH = "downloaded_Human_Resources.xlsx"
-PROJECTS_FILE = "projects_data_weekly.xlsx"
+# URL to the Human Resources Excel file (replace with your link)
+HR_FILE_URL = "https://khatibandalami-my.sharepoint.com/:x:/g/personal/ahmedsayed_soliman_khatibalami_com/EXQjPzZs9h5Nly5JKGQQmCEB-_KVir0yZEIteOqCa4epqA?e=Bg4v5d"  # Replace with your direct link
+PROJECTS_FILE = "projects_data_weekly.xlsx"  # Local file for project data
 
-# Function to download and save the Excel file
-def download_and_save_excel(url, output_file):
+# Function to read Excel data directly from a URL
+def load_excel_from_url(url):
     try:
         response = requests.get(url)
         if response.status_code == 200:
-            excel_data = pd.read_excel(BytesIO(response.content))
-            excel_data.to_excel(output_file, index=False)
-            st.success(f"File successfully downloaded and saved as {output_file}")
-            return excel_data
+            return pd.read_excel(BytesIO(response.content))
         else:
-            st.error(f"Failed to download file: HTTP {response.status_code}")
-            return None
+            st.error(f"Failed to fetch file: HTTP {response.status_code}")
+            return pd.DataFrame()
     except Exception as e:
-        st.error(f"An error occurred: {e}")
-        return None
+        st.error(f"Error reading data from URL: {e}")
+        return pd.DataFrame()
 
-# Load data from Excel file or create a new one
+# Load or create project data
 def load_or_create_excel(file_path):
     try:
         return pd.read_excel(file_path)
@@ -34,7 +30,7 @@ def load_or_create_excel(file_path):
         # Create an empty DataFrame if file does not exist
         return pd.DataFrame(columns=["Project ID", "Project Name", "Personnel", "Week", "Budgeted Hrs", "Spent Hrs"])
 
-# Save data to Excel file
+# Save project data to an Excel file
 def save_to_excel(data, file_path):
     try:
         data.to_excel(file_path, index=False)
@@ -42,7 +38,7 @@ def save_to_excel(data, file_path):
     except Exception as e:
         st.error(f"Failed to save data: {e}")
 
-# Generate weeks for a given year and month
+# Generate weekly labels for a specific year and month
 def generate_weeks_for_month(year, month):
     start_date = datetime(year, month, 1)
     end_date = (start_date + timedelta(days=31)).replace(day=1)
@@ -57,31 +53,32 @@ def generate_weeks_for_month(year, month):
 def main():
     st.title("Water & Environment Project Planning")
 
-    # Step 1: Download and Load Human Resources File
-    st.subheader("Step 1: Manage Human Resources File")
-    if st.button("Download Human Resources Data"):
-        hr_data = download_and_save_excel(HR_FILE_URL, HR_FILE_PATH)
-        if hr_data is not None:
-            st.write("Downloaded Human Resources Data Preview:")
-            st.dataframe(hr_data)
-
-    # Load Human Resources Data
-    try:
-        hr_data = pd.read_excel(HR_FILE_PATH)
-        sections = hr_data["Section"].dropna().unique().tolist()
-    except FileNotFoundError:
-        st.error("Human Resources file not found. Please download the file first.")
+    # Step 1: Load Human Resources Data from URL
+    st.subheader("Step 1: Load Human Resources Data")
+    hr_data = load_excel_from_url(HR_FILE_URL)
+    if hr_data.empty:
+        st.error("Could not load Human Resources data. Please check the URL and try again.")
         return
 
-    # Step 2: Load or Create Projects File
+    # Display loaded data for verification
+    st.write("Loaded Human Resources Data:")
+    st.dataframe(hr_data)
+
+    # Extract sections and engineer names from HR data
+    if "Section" not in hr_data.columns or "Name" not in hr_data.columns:
+        st.error("The Human Resources data does not have 'Section' or 'Name' columns.")
+        return
+    sections = hr_data["Section"].dropna().unique().tolist()
+
+    # Step 2: Load or Create Project Data
     project_data = load_or_create_excel(PROJECTS_FILE)
 
     # Step 3: Choose Action
-    st.subheader("Step 3: Choose Action")
+    st.subheader("Step 2: Choose Action")
     action = st.radio("What would you like to do?", ["Create New Project", "Update Existing Project"])
 
     # Step 4: Select Section and Filter Engineers
-    st.subheader("Step 4: Select Section")
+    st.subheader("Step 3: Select Section")
     selected_section = st.selectbox("Select a Section", sections)
     filtered_engineers = hr_data[hr_data["Section"] == selected_section]["Name"].dropna().tolist()
 
@@ -97,7 +94,7 @@ def main():
 
         weeks = generate_weeks_for_month(year, month_index)
 
-        # Assign hours for each engineer
+        # Assign weekly hours for each engineer
         st.subheader("Assign Weekly Budgeted Hours")
         if "new_project_allocations" not in st.session_state:
             st.session_state.new_project_allocations = []
