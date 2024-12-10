@@ -1,13 +1,22 @@
-import streamlit as st
-import pandas as pd
-from datetime import datetime, timedelta
-from calendar import month_name
-from io import BytesIO
 import requests
+import pandas as pd
+from io import BytesIO
 
+# Original SharePoint link
+HR_FILE_URL = "https://khatibandalami-my.sharepoint.com/:x:/g/personal/ahmedsayed_soliman_khatibalami_com/EXQjPzZs9h5Nly5JKGQQmCEBs2p3CemxDu-LIWkMnENS-A?e=nwShYm"
 
-# URL to the Human Resources Excel file (replace with your link)
-HR_FILE_URL = "https://khatibandalami-my.sharepoint.com/personal/ahmedsayed_soliman_khatibalami_com/_layouts/15/download.aspx?SourceUrl=https://khatibandalami-my.sharepoint.com/personal/ahmedsayed_soliman_khatibalami_com/EXQjPzZs9h5Nly5JKGQQmCEBs2p3CemxDu-LIWkMnENS-A"
+# Fetch the file
+try:
+    response = requests.get(HR_FILE_URL)
+    response.raise_for_status()  # Raise HTTPError for bad responses (4xx or 5xx)
+    
+    # Load the content into a pandas DataFrame
+    data = pd.read_excel(BytesIO(response.content), engine="openpyxl")
+    print(data.head())  # Display the first few rows of the DataFrame
+except requests.exceptions.RequestException as e:
+    print(f"Error fetching the file: {e}")
+except ValueError as ve:
+    print(f"Error loading Excel file: {ve}")EXQjPzZs9h5Nly5JKGQQmCEBs2p3CemxDu-LIWkMnENS-A"
 PROJECTS_FILE = "projects_data_weekly.xlsx"  # Local file for project data
 
 # Function to read Excel data directly from a URL
