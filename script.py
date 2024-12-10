@@ -6,7 +6,7 @@ from io import BytesIO
 import requests
 
 # URL to the Human Resources Excel file (replace with your link)
-HR_FILE_URL = "https://khatibandalami-my.sharepoint.com/:x:/g/personal/ahmedsayed_soliman_khatibalami_com/EXQjPzZs9h5Nly5JKGQQmCEBIZP_IqkYo-ClHsSLplfSdQ?e=qXUI84"  # Replace with your direct link
+HR_FILE_URL = "https://khatibandalami-my.sharepoint.com/:x:/g/personal/ahmedsayed_soliman_khatibalami_com/EXQjPzZs9h5Nly5JKGQQmCEBAK0HEXEuhf34ouq6w7pn1w?e=ZsxTr1"  # Replace with your direct link
 PROJECTS_FILE = "projects_data_weekly.xlsx"  # Local file for project data
 
 # Function to read Excel data directly from a URL
