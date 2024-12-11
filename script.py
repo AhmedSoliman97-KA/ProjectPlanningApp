@@ -41,7 +41,7 @@ def ensure_dropbox_projects_file_exists(file_path):
         st.warning(f"{file_path} not found in Dropbox. Creating a new file...")
         empty_df = pd.DataFrame(columns=[
             "Project ID", "Project Name", "Personnel", "Week", "Year", "Month",
-            "Budgeted Hrs", "Spent Hrs", "Remaining Hrs", "Cost/Hr", "Budgeted Cost",
+            "Budgeted Hrs", "Spent Hrs", "Remaining Hrs", "Cost/Hour", "Budgeted Cost",
             "Remaining Cost", "Section", "Category"
         ])
         upload_to_dropbox(empty_df, file_path)
@@ -212,8 +212,8 @@ def main():
                 key=f"update_spent_{row['Personnel']}_{row['Week']}"
             )
             remaining_hours = updated_budgeted - updated_spent
-            budgeted_cost = updated_budgeted * row["Cost/Hr"]
-            remaining_cost = remaining_hours * row["Cost/Hr"]
+            budgeted_cost = updated_budgeted * row["Cost/Hour"]
+            remaining_cost = remaining_hours * row["Cost/Hour"]
             updated_rows.append({
                 "Project ID": row["Project ID"],
                 "Project Name": row["Project Name"],
@@ -224,7 +224,7 @@ def main():
                 "Budgeted Hrs": updated_budgeted,
                 "Spent Hrs": updated_spent,
                 "Remaining Hrs": remaining_hours,
-                "Cost/Hr": row["Cost/Hr"],
+                "Cost/Hour": row["Cost/Hour"],
                 "Budgeted Cost": budgeted_cost,
                 "Remaining Cost": remaining_cost,
                 "Section": row["Section"],
