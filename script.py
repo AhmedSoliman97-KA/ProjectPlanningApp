@@ -24,21 +24,31 @@ def get_access_token():
     else:
         raise Exception("Authentication failed: " + str(result))
 
+# List files in OneDrive root directory
 def list_onedrive_files(access_token):
     url = "https://graph.microsoft.com/v1.0/me/drive/root/children"
     headers = {"Authorization": f"Bearer {access_token}"}
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
-        files = response.json()
-        for file in files["value"]:
-            print(f"Name: {file['name']}, Path: {file['parentReference']['path']}")
-        return files
+        files = response.json()["value"]
+        file_list = [{"name": file["name"], "id": file["id"]} for file in files]
+        return file_list
     else:
         raise Exception(f"Failed to list files: {response.status_code} - {response.text}")
 
+# Download a file from OneDrive
+def download_file_from_onedrive(access_token, file_id):
+    url = f"https://graph.microsoft.com/v1.0/me/drive/items/{file_id}/content"
+    headers = {"Authorization": f"Bearer {access_token}"}
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        return pd.read_excel(BytesIO(response.content), engine="openpyxl")
+    else:
+        raise Exception(f"Failed to download file: {response.status_code} - {response.text}")
+
 # Upload a file to OneDrive
-def upload_file_to_onedrive(access_token, file_path, data_frame):
-    url = f"https://1drv.ms/x/c/dc92d57d369f0c6e/Ee1_xPk8fv9HihGaGmX2fx0BNEiTAKFIPfhsneI7O9425g?e=BcimfO"
+def upload_file_to_onedrive(access_token, file_name, data_frame):
+    url = f"https://graph.microsoft.com/v1.0/me/drive/root:/{file_name}:/content"
     headers = {
         "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -49,20 +59,9 @@ def upload_file_to_onedrive(access_token, file_path, data_frame):
         output.seek(0)
         response = requests.put(url, headers=headers, data=output)
     if response.status_code in [200, 201]:
-        print(f"File uploaded successfully to {file_path}.")
+        print(f"File uploaded successfully to {file_name}.")
     else:
         raise Exception(f"Failed to upload file: {response.status_code} - {response.text}")
-
-# Generate weekly data for given year and month
-def generate_weeks_for_month(year, month):
-    start_date = datetime(year, month, 1)
-    end_date = (start_date + timedelta(days=31)).replace(day=1)
-    weeks = []
-    while start_date < end_date:
-        week_label = f"Week {start_date.isocalendar()[1]} - {year}"
-        weeks.append(week_label)
-        start_date += timedelta(days=7)
-    return weeks
 
 # Main function for the app
 def main():
@@ -76,9 +75,16 @@ def main():
         st.error(f"Authentication failed: {e}")
         return
 
-    # Load Human Resources data
+    # List files in OneDrive and select the required files
     try:
-        hr_data = download_file_from_onedrive(access_token, "Human Resources.xlsx")
+        files = list_onedrive_files(access_token)
+        file_names = [file["name"] for file in files]
+        file_dict = {file["name"]: file["id"] for file in files}
+
+        st.write("Available files in OneDrive:")
+        selected_hr_file = st.selectbox("Select Human Resources file", file_names)
+        hr_file_id = file_dict[selected_hr_file]
+        hr_data = download_file_from_onedrive(access_token, hr_file_id)
         st.write("Human Resources Data:")
         st.dataframe(hr_data)
     except Exception as e:
@@ -87,7 +93,9 @@ def main():
 
     # Load or initialize project data
     try:
-        project_data = download_file_from_onedrive(access_token, "projects_data_weekly.xlsx")
+        selected_project_file = st.selectbox("Select Projects file", file_names)
+        project_file_id = file_dict[selected_project_file]
+        project_data = download_file_from_onedrive(access_token, project_file_id)
     except Exception:
         st.warning("No existing project data found. Initializing a new file.")
         project_data = pd.DataFrame(columns=["Project ID", "Project Name", "Personnel", "Week", "Budgeted Hrs", "Spent Hrs"])
@@ -101,7 +109,7 @@ def main():
         project_name = st.text_input("Project Name")
         year = st.number_input("Year", min_value=2000, max_value=2100, value=datetime.now().year)
         month = st.number_input("Month", min_value=1, max_value=12, value=datetime.now().month)
-        weeks = generate_weeks_for_month(year, month)
+        weeks = [f"Week {i}" for i in range(1, 5)]  # Example weekly labels
 
         if "new_project_allocations" not in st.session_state:
             st.session_state.new_project_allocations = []
@@ -119,7 +127,7 @@ def main():
             new_data = pd.DataFrame(st.session_state.new_project_allocations)
             project_data = pd.concat([project_data, new_data], ignore_index=True)
             try:
-                upload_file_to_onedrive(access_token, "projects_data_weekly.xlsx", project_data)
+                upload_file_to_onedrive(access_token, selected_project_file, project_data)
                 st.success("Project data saved successfully!")
             except Exception as e:
                 st.error(f"Failed to save project data: {e}")
@@ -138,7 +146,7 @@ def main():
 
         if st.button("Save Updates"):
             try:
-                upload_file_to_onedrive(access_token, "projects_data_weekly.xlsx", project_data)
+                upload_file_to_onedrive(access_token, selected_project_file, project_data)
                 st.success("Updates saved successfully!")
             except Exception as e:
                 st.error(f"Failed to save updates: {e}")
