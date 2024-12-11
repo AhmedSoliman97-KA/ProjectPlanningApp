@@ -135,7 +135,33 @@ def main():
 
             if st.button("Submit Project"):
                 new_data = pd.DataFrame(allocations)
-                updated_data = pd.concat([projects_data, new_data], ignore_index=True)
+
+                # Generate Composite Key for New Data
+                new_data["Composite Key"] = (
+                    new_data["Project ID"] + "_" +
+                    new_data["Project Name"] + "_" +
+                    new_data["Personnel"] + "_" +
+                    new_data["Week"]
+                )
+
+                # Generate Composite Key for Existing Data
+                projects_data["Composite Key"] = (
+                    projects_data["Project ID"] + "_" +
+                    projects_data["Project Name"] + "_" +
+                    projects_data["Personnel"] + "_" +
+                    projects_data["Week"]
+                )
+
+                # Remove Existing Rows with Matching Composite Keys
+                updated_data = projects_data[~projects_data["Composite Key"].isin(new_data["Composite Key"])]
+
+                # Append New Data
+                updated_data = pd.concat([updated_data, new_data], ignore_index=True)
+
+                # Drop Composite Key from Final Dataset
+                updated_data.drop(columns=["Composite Key"], inplace=True)
+
+                # Save to Dropbox
                 upload_to_dropbox(updated_data, PROJECTS_FILE_PATH)
                 st.success("Project submitted successfully!")
 
@@ -153,13 +179,15 @@ def main():
             updated_budgeted = st.number_input(
                 f"Budgeted Hours ({row['Week']}) for {row['Personnel']}",
                 min_value=0,
-                value=row["Budgeted Hrs"],
+                value=int(row["Budgeted Hrs"]) if not pd.isna(row["Budgeted Hrs"]) else 0,
+                step=1,
                 key=f"update_budgeted_{row['Personnel']}_{row['Week']}"
             )
             updated_spent = st.number_input(
                 f"Spent Hours ({row['Week']}) for {row['Personnel']}",
                 min_value=0,
-                value=row["Spent Hrs"],
+                value=int(row["Spent Hrs"]) if not pd.isna(row["Spent Hrs"]) else 0,
+                step=1,
                 key=f"update_spent_{row['Personnel']}_{row['Week']}"
             )
             updated_rows.append({
@@ -174,10 +202,37 @@ def main():
             })
 
         if st.button("Save Updates"):
-            remaining_data = projects_data[projects_data["Project Name"] != selected_project]
-            updated_data = pd.concat([remaining_data, pd.DataFrame(updated_rows)], ignore_index=True)
-            upload_to_dropbox(updated_data, PROJECTS_FILE_PATH)
+            updated_rows = pd.DataFrame(updated_rows)
+
+            # Generate Composite Key for Updated Rows
+            updated_rows["Composite Key"] = (
+                updated_rows["Project ID"] + "_" +
+                updated_rows["Project Name"] + "_" +
+                updated_rows["Personnel"] + "_" +
+                updated_rows["Week"]
+            )
+
+            # Generate Composite Key for Existing Data
+            projects_data["Composite Key"] = (
+                projects_data["Project ID"] + "_" +
+                projects_data["Project Name"] + "_" +
+                projects_data["Personnel"] + "_" +
+                projects_data["Week"]
+            )
+
+            # Remove Existing Rows with Matching Composite Keys
+            remaining_data = projects_data[~projects_data["Composite Key"].isin(updated_rows["Composite Key"])]
+
+            # Append Updated Rows
+            final_data = pd.concat([remaining_data, updated_rows], ignore_index=True)
+
+            # Drop Composite Key from Final Dataset
+            final_data.drop(columns=["Composite Key"], inplace=True)
+
+            # Save to Dropbox
+            upload_to_dropbox(final_data, PROJECTS_FILE_PATH)
             st.success(f"Updates to '{selected_project}' saved successfully!")
 
 if __name__ == "__main__":
     main()
+
