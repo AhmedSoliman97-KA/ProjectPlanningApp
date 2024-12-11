@@ -1,31 +1,61 @@
 import streamlit as st
 import pandas as pd
+import requests
+import msal
+from io import BytesIO
 from datetime import datetime, timedelta
 from calendar import month_name
 
-# Load data from the Excel file
-def load_data(file_path, sheet_name=None):
-    try:
-        if sheet_name:
-            return pd.read_excel(file_path, sheet_name=sheet_name)
-        else:
-            return pd.ExcelFile(file_path).sheet_names
-    except ImportError:
-        st.error("Missing optional dependency 'openpyxl'. Use pip to install openpyxl.")
-        return None
-    except Exception as e:
-        st.error(f"Error loading data: {e}")
-        return None
+# OneDrive API credentials
+CLIENT_ID = "3686715d-f3f7-41d9-ae6b-bd722174bc6b"
+TENANT_ID = "0fa087f9-be01-4a3e-874d-03fd3b33f1b6"
+CLIENT_SECRET = "53de388a-fc0b-4471-99b7-e4222bca80fd"
 
-# Save project details to Excel with the desired format
-def save_to_excel(output_data, output_path):
-    output_df = pd.DataFrame(output_data)
-    output_df.to_excel(output_path, index=False)
+AUTHORITY = f"https://login.microsoftonline.com/{TENANT_ID}"
+SCOPE = ["https://graph.microsoft.com/.default"]
 
-# Generate weeks for a specific month and year
+# Authenticate and get access token
+def get_access_token():
+    app = msal.ConfidentialClientApplication(
+        CLIENT_ID, authority=AUTHORITY, client_credential=CLIENT_SECRET
+    )
+    result = app.acquire_token_for_client(scopes=SCOPE)
+    if "access_token" in result:
+        return result["access_token"]
+    else:
+        raise Exception("Authentication failed: " + str(result))
+
+# Download a file from OneDrive
+def download_file_from_onedrive(access_token, file_path):
+    url = f"https://engsohagedu-my.sharepoint.com/:x:/g/personal/ahmed2016018_eng_sohag_edu_eg/Ea1YnybszbRGlMDOuKuYfj0BxX-E7PDl0HctF6SB3KNEyw?e=rM0p69"
+    headers = {"Authorization": f"Bearer {access_token}"}
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        return pd.read_excel(BytesIO(response.content), engine="openpyxl")
+    else:
+        raise Exception(f"Failed to download file: {response.status_code} - {response.text}")
+
+# Upload a file to OneDrive
+def upload_file_to_onedrive(access_token, file_path, data_frame):
+    url = f"https://engsohagedu-my.sharepoint.com/:f:/g/personal/ahmed2016018_eng_sohag_edu_eg/EqWXv4SllaNOtcCL8Mq7n2AB-dy39lJn6kWhkxFl8a8_rQ?e=IcW4Gu"
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    }
+    with BytesIO() as output:
+        with pd.ExcelWriter(output, engine="openpyxl") as writer:
+            data_frame.to_excel(writer, index=False)
+        output.seek(0)
+        response = requests.put(url, headers=headers, data=output)
+    if response.status_code in [200, 201]:
+        print(f"File uploaded successfully to {file_path}.")
+    else:
+        raise Exception(f"Failed to upload file: {response.status_code} - {response.text}")
+
+# Generate weekly labels for a specific year and month
 def generate_weeks_for_month(year, month):
     start_date = datetime(year, month, 1)
-    end_date = (start_date + timedelta(days=31)).replace(day=1)  # Move to the next month
+    end_date = (start_date + timedelta(days=31)).replace(day=1)
     weeks = []
     while start_date < end_date:
         week_label = f"Week {start_date.isocalendar()[1]} - {year}"
@@ -33,179 +63,112 @@ def generate_weeks_for_month(year, month):
         start_date += timedelta(days=7)
     return weeks
 
-# Main application
+# Main Streamlit Application
 def main():
-    # App header
-    st.image("image.png", use_container_width=True)
     st.title("Water & Environment Project Planning")
 
-    # Initialize paths
-    resources_path = 'Work Load Sheet - Draft Rev 02 - Water Treatment.xlsx'
-    hr_file_path = 'Human Resources.xlsx'
-    projects_data_path = "projects_data_weekly.xlsx"
+    # Authenticate and get access token
+    try:
+        access_token = get_access_token()
+    except Exception as e:
+        st.error(f"Authentication failed: {e}")
+        return
 
-    # Load available sections from the HR file (tab names)
-    hr_sections = load_data(hr_file_path)
-    if hr_sections is None:
-        st.stop()
+    # Load Human Resources data
+    try:
+        hr_data = download_file_from_onedrive(access_token, "Human Resources.xlsx")
+        st.write("Human Resources Data:")
+        st.dataframe(hr_data)
+    except Exception as e:
+        st.error(f"Failed to load Human Resources data: {e}")
+        return
 
-    # Step 1: User Selection (New or Update Project)
+    # Load or initialize project data
+    try:
+        project_data = download_file_from_onedrive(access_token, "projects_data_weekly.xlsx")
+    except Exception:
+        st.warning("No existing project data found. Initializing a new file.")
+        project_data = pd.DataFrame(columns=["Project ID", "Project Name", "Personnel", "Week", "Budgeted Hrs", "Spent Hrs"])
+
+    # Step 1: Choose Action
     st.subheader("Step 1: Choose Action")
     action = st.radio("What would you like to do?", ["Create New Project", "Update Existing Project"])
 
-    # Section Selection
-    st.subheader("Step 2: Select Section")
-    selected_section = st.selectbox("Choose a section", hr_sections)
-
-    # Load data for the selected section
-    engineers_data = load_data(hr_file_path, sheet_name=selected_section)
-    if engineers_data is None or "Name" not in engineers_data.columns:
-        st.error(f"The selected section '{selected_section}' does not have a valid 'Name' column.")
-        st.stop()
-
-    engineer_names = engineers_data["Name"].dropna().tolist()
-
+    # Step 2: Add New Project
     if action == "Create New Project":
-        # Step 3: Enter Project Details
-        st.subheader("Step 3: Project Details")
-        with st.container():
-            col1, col2 = st.columns(2)
-            with col1:
-                project_id = st.text_input("Project ID", help="Enter the unique ID for the project.")
-            with col2:
-                project_name = st.text_input("Project Name", help="Enter the unique name of the project.")
+        st.subheader("Create a New Project")
 
-        selected_year = st.selectbox("Year", range(datetime.now().year - 5, datetime.now().year + 6), index=5)
-        selected_month = st.selectbox("Month", list(month_name)[1:], index=datetime.now().month - 1)
-        selected_month_index = list(month_name).index(selected_month)
+        # Input project details
+        project_id = st.text_input("Project ID")
+        project_name = st.text_input("Project Name")
+        year = st.selectbox("Year", range(datetime.now().year - 5, datetime.now().year + 6))
+        month = st.selectbox("Month", list(month_name)[1:])
+        month_index = list(month_name).index(month)
 
-        # Generate weeks
-        weeks = generate_weeks_for_month(selected_year, selected_month_index)
+        weeks = generate_weeks_for_month(year, month_index)
 
-        # Step 4: Assign Engineers and Weekly Hours
-        st.subheader("Step 4: Assign Engineers and Weekly Budgeted Hours")
-        assigned_engineers = st.multiselect("Select Engineers", engineer_names)
+        # Assign weekly hours for each personnel
+        if "new_project_allocations" not in st.session_state:
+            st.session_state.new_project_allocations = []
 
-        # Initialize dictionary in session state
-        if "engineer_allocation" not in st.session_state:
-            st.session_state.engineer_allocation = {}
-
-        for engineer in assigned_engineers:
-            st.markdown(f"**Engineer: {engineer}**")
+        personnel_list = hr_data["Name"].dropna().unique().tolist()
+        for person in personnel_list:
+            st.markdown(f"**{person}**")
             for week_label, _ in weeks:
+                hours = st.number_input(f"{week_label} Hours for {person}", min_value=0, step=1,
+                                        key=f"{person}_{week_label}")
+                if hours > 0:
+                    st.session_state.new_project_allocations.append(
+                        {"Project ID": project_id, "Project Name": project_name, "Personnel": person,
+                         "Week": week_label, "Year": year, "Month": month, "Budgeted Hrs": hours}
+                    )
+
+        # Save new project data
+        if st.button("Submit Project"):
+            new_data = pd.DataFrame(st.session_state.new_project_allocations)
+            project_data = pd.concat([project_data, new_data], ignore_index=True)
+            try:
+                upload_file_to_onedrive(access_token, "projects_data_weekly.xlsx", project_data)
+                st.success(f"Project '{project_name}' created successfully!")
+                st.session_state.new_project_allocations = []
+            except Exception as e:
+                st.error(f"Failed to save project data: {e}")
+
+    # Step 3: Update Existing Project
+    elif action == "Update Existing Project":
+        st.subheader("Update an Existing Project")
+        project_names = project_data["Project Name"].unique().tolist()
+        selected_project = st.selectbox("Select Project", project_names)
+
+        if selected_project:
+            filtered_data = project_data[project_data["Project Name"] == selected_project]
+            for index, row in filtered_data.iterrows():
                 col1, col2 = st.columns(2)
                 with col1:
                     budgeted_hours = st.number_input(
-                        f"Budgeted Hours ({week_label})",
-                        min_value=0,
-                        step=1,
-                        key=f"budget_{engineer}_{week_label}"
+                        f"Budgeted Hours for {row['Personnel']} ({row['Week']})",
+                        min_value=0, value=row["Budgeted Hrs"], step=1, key=f"budget_{index}"
                     )
                 with col2:
-                    if st.button("Add Hours", key=f"add_hours_{engineer}_{week_label}"):
-                        # Create a unique key for the allocation
-                        unique_key = f"{engineer}_{week_label}"
-                        # Add or update the allocation
-                        st.session_state.engineer_allocation[unique_key] = {
-                            "Project ID": project_id,
-                            "Project Name": project_name,
-                            "Personnel": engineer,
-                            "Week": week_label,
-                            "Year": selected_year,
-                            "Month": selected_month,
-                            "Budgeted Hrs": budgeted_hours,
-                            "Spent Hrs": 0,  # No spent hours for new projects
-                        }
-                        st.success(f"Hours added for {engineer} ({week_label}).")
-
-        # Summary Section
-        st.subheader("Summary of Allocations")
-        if st.session_state.engineer_allocation:
-            summary_data = list(st.session_state.engineer_allocation.values())
-            summary_df = pd.DataFrame(summary_data)
-
-            st.dataframe(summary_df)
-            st.write(f"**Total Budgeted Hours:** {summary_df['Budgeted Hrs'].sum()}")
-
-        # Submit Button
-        if st.button("Submit Project"):
-            new_df = pd.DataFrame(st.session_state.engineer_allocation.values())
-            try:
-                existing_projects = pd.read_excel(projects_data_path)
-                final_df = pd.concat([existing_projects, new_df], ignore_index=True)
-            except FileNotFoundError:
-                final_df = new_df
-            final_df.to_excel(projects_data_path, index=False)
-            st.success(f"Project '{project_name}' submitted successfully!")
-            st.session_state.engineer_allocation = {}
-
-    elif action == "Update Existing Project":
-        # Load existing projects
-        try:
-            projects_data = pd.read_excel(projects_data_path)
-        except FileNotFoundError:
-            projects_data = pd.DataFrame(columns=["Project ID", "Project Name", "Personnel", "Budgeted Hrs", "Spent Hrs", "Week", "Year", "Month"])
-
-        if projects_data.empty:
-            st.warning("No existing projects found. Please create a new project first.")
-            st.stop()
-
-        # Step 3: Select Project to Update
-        st.subheader("Step 3: Select Project to Update")
-        project_names = projects_data["Project Name"].unique().tolist()
-        selected_project = st.selectbox("Choose a project", project_names)
-
-        if selected_project:
-            # Filter allocations for the selected project
-            project_data = projects_data[projects_data["Project Name"] == selected_project]
-            st.subheader(f"Update Allocations for Project: {selected_project}")
-
-            updated_data = []
-
-            for index, row in project_data.iterrows():
-                engineer = row["Personnel"]
-                week = row["Week"]
-
-                if engineer not in engineer_names:
-                    st.warning(f"Engineer '{engineer}' is not part of the selected section '{selected_section}'. Skipping...")
-                    continue
-
-                col1, col2 = st.columns(2)
-                with col1:
-                    updated_budgeted_hours = st.number_input(
-                        f"Budgeted Hours ({week}) for {engineer}",
-                        min_value=0,
-                        value=row["Budgeted Hrs"],
-                        step=1,
-                        key=f"update_budget_{index}"
+                    spent_hours = st.number_input(
+                        f"Spent Hours for {row['Personnel']} ({row['Week']})",
+                        min_value=0, value=row["Spent Hrs"], step=1, key=f"spent_{index}"
                     )
-                with col2:
-                    updated_spent_hours = st.number_input(
-                        f"Spent Hours ({week}) for {engineer}",
-                        min_value=0,
-                        value=row["Spent Hrs"],
-                        step=1,
-                        key=f"update_spent_{index}"
-                    )
+                project_data.loc[index, "Budgeted Hrs"] = budgeted_hours
+                project_data.loc[index, "Spent Hrs"] = spent_hours
 
-                updated_data.append({
-                    "Project ID": row["Project ID"],
-                    "Project Name": row["Project Name"],
-                    "Personnel": engineer,
-                    "Week": week,
-                    "Year": row["Year"],
-                    "Month": row["Month"],
-                    "Budgeted Hrs": updated_budgeted_hours,
-                    "Spent Hrs": updated_spent_hours,
-                })
-
-            # Submit Updates
             if st.button("Save Updates"):
-                updated_df = pd.DataFrame(updated_data)
-                remaining_data = projects_data[projects_data["Project Name"] != selected_project]
-                final_data = pd.concat([remaining_data, updated_df], ignore_index=True)
-                final_data.to_excel(projects_data_path, index=False)
-                st.success(f"Updates to project '{selected_project}' have been saved successfully!")
+                try:
+                    upload_file_to_onedrive(access_token, "projects_data_weekly.xlsx", project_data)
+                    st.success(f"Project '{selected_project}' updated successfully!")
+                except Exception as e:
+                    st.error(f"Failed to save updates: {e}")
+
+    # Display Summary
+    st.subheader("Project Summary")
+    st.dataframe(project_data)
+    st.write(f"**Total Budgeted Hours:** {project_data['Budgeted Hrs'].sum()}")
+    st.write(f"**Total Spent Hours:** {project_data['Spent Hrs'].sum()}")
 
 if __name__ == "__main__":
     main()
