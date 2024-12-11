@@ -3,40 +3,17 @@ import pandas as pd
 from datetime import datetime, timedelta
 from calendar import month_name
 import dropbox
-import requests
 
-# Dropbox App Credentials
-APP_KEY = "sx01gc363t4x0ki"
-APP_SECRET = "tmaowc3yrmzr4vb"
-REFRESH_TOKEN = "sl.u.AFYqauRh9brxevk2GcyZ9aObwvEkAPUBwfhqTjyB71Nf_VAYFmmHfNL1hC8S6HkseyOHC_YeaWv6QEj88Q-xV8A3a2aki0YfpRTyXs9TS3UGzPplWF0_32ejMiDDRhDNOPoJ1-NMcomGC5VRcfppl5V96jmo9qKDrLTNe90jj7FJFrQyPa_CYoWJL8H8883KbeukNFisHTxDx-vVK9C4MV_jqDtvUYKirsFs4Uzfh3yKfZysOEyMZ5sHvfFx6_sguvQneXeqYkhMNsuVOydyr74jLqbfeS_BrQrw5jquNINnBJ3m5UsYo10cDscetXHWHWDY_5uxUdYS4dBS_A4v3TA3d-lxDSDqeDjXreAtCVKIbToDXux-7hVXFVSVDEFayUQlXE7c7F164D8DC6M3WRiK5h-C4gRito6k-YmBJcUMImzFLf8aTuT5PGV0ayLdntbFOCY5D7edPWkBYcXnTBJZtdxFi4aq5ZuMp1PAqSzdZR4FlaHgtaYzlY859i3cn4lQak8TNDo7KTMF9UnGzcQ2D4EFZF9e3-ha9fOYvgrZ75c12SZ7CyezYjt4mhIabfFvl00FSydfEs3LRV-wqFtOglX2MqhmAR0np5niqv57R5c1fzoo0sH6blBM9DRCg2ojbmbg8nQdvxoKyHyQ_utX1pSnl0WF6pLYEXByDtaEHrj3smrNPGjh6rZ9RXyRislxaeGjr2qBt-pH5s3Snq4vh7m_KU7-J8dfxAzfSlmAajqN9ryUQl1JDVIqfotnf7juVskoXHKjsHblIz0aRKhqyYYll5e2sczvxa2xtM2I1y8ZhGe0kyBG6AeeP9wQoxc7dsSEtE9wijyKqaLucgQli58DRzdJMRch6DYny91wtg4-k4ysN0CTe-446VH1-D9S7HV1NZeBo5GSBAMobuzP-pngRi1rxmuce4uZBasgLUKMEWIbZT2eLTQD1JWta9EYu01lCJ_AgSbLx9lDLBlkCadlRCKrszjggwG8Lv6jnavt76lggtccIILMA2SJGVGYCWRBWDw9RnNGJoc0pcjHq8ek3oWPEyicVQ3RQWv5T9prvgq7IuxwOomaR6AC5hl74Ew5Jhx49Cc4Da4lQwPXeI3r_EojVv7vmVHvcTzvLnvmIvvZ-ExypVaMxEvMaNvxotDSJwx7BbdvNag3ADqXsZ8PqYzV-39WWQD-ZKt5ArTxPMkkPx0II5oM94OXuS9NAfQvWRwI57IjpJV3iLDSTa-iLPeL1SpnbcxyEjL-GnGZLQWQBMYtT7ZRcMx_zoAPeQLxQN8bu_nvmuWY7c5M0EkepaLSE_lIyTF6UvVNFERqfcefHOCINa1sEeyAMuFL5yX4hDYsYUl_hwEp8kitpbPbgA-7ZxsLsrQxiM8CEm9Fbea8c1AlnaBy4GZPvdCcPWrpJUg99BoCd_1TL3-mCJXxB_qsvTOVjwTlJD6Z_2wOyOwX2oaP9hPL23zYRRk"
-
-# Dropbox File Paths
+# Dropbox Settings
+ACCESS_TOKEN = "sl.u.AFYqauRh9brxevk2GcyZ9aObwvEkAPUBwfhqTjyB71Nf_VAYFmmHfNL1hC8S6HkseyOHC_YeaWv6QEj88Q-xV8A3a2aki0YfpRTyXs9TS3UGzPplWF0_32ejMiDDRhDNOPoJ1-NMcomGC5VRcfppl5V96jmo9qKDrLTNe90jj7FJFrQyPa_CYoWJL8H8883KbeukNFisHTxDx-vVK9C4MV_jqDtvUYKirsFs4Uzfh3yKfZysOEyMZ5sHvfFx6_sguvQneXeqYkhMNsuVOydyr74jLqbfeS_BrQrw5jquNINnBJ3m5UsYo10cDscetXHWHWDY_5uxUdYS4dBS_A4v3TA3d-lxDSDqeDjXreAtCVKIbToDXux-7hVXFVSVDEFayUQlXE7c7F164D8DC6M3WRiK5h-C4gRito6k-YmBJcUMImzFLf8aTuT5PGV0ayLdntbFOCY5D7edPWkBYcXnTBJZtdxFi4aq5ZuMp1PAqSzdZR4FlaHgtaYzlY859i3cn4lQak8TNDo7KTMF9UnGzcQ2D4EFZF9e3-ha9fOYvgrZ75c12SZ7CyezYjt4mhIabfFvl00FSydfEs3LRV-wqFtOglX2MqhmAR0np5niqv57R5c1fzoo0sH6blBM9DRCg2ojbmbg8nQdvxoKyHyQ_utX1pSnl0WF6pLYEXByDtaEHrj3smrNPGjh6rZ9RXyRislxaeGjr2qBt-pH5s3Snq4vh7m_KU7-J8dfxAzfSlmAajqN9ryUQl1JDVIqfotnf7juVskoXHKjsHblIz0aRKhqyYYll5e2sczvxa2xtM2I1y8ZhGe0kyBG6AeeP9wQoxc7dsSEtE9wijyKqaLucgQli58DRzdJMRch6DYny91wtg4-k4ysN0CTe-446VH1-D9S7HV1NZeBo5GSBAMobuzP-pngRi1rxmuce4uZBasgLUKMEWIbZT2eLTQD1JWta9EYu01lCJ_AgSbLx9lDLBlkCadlRCKrszjggwG8Lv6jnavt76lggtccIILMA2SJGVGYCWRBWDw9RnNGJoc0pcjHq8ek3oWPEyicVQ3RQWv5T9prvgq7IuxwOomaR6AC5hl74Ew5Jhx49Cc4Da4lQwPXeI3r_EojVv7vmVHvcTzvLnvmIvvZ-ExypVaMxEvMaNvxotDSJwx7BbdvNag3ADqXsZ8PqYzV-39WWQD-ZKt5ArTxPMkkPx0II5oM94OXuS9NAfQvWRwI57IjpJV3iLDSTa-iLPeL1SpnbcxyEjL-GnGZLQWQBMYtT7ZRcMx_zoAPeQLxQN8bu_nvmuWY7c5M0EkepaLSE_lIyTF6UvVNFERqfcefHOCINa1sEeyAMuFL5yX4hDYsYUl_hwEp8kitpbPbgA-7ZxsLsrQxiM8CEm9Fbea8c1AlnaBy4GZPvdCcPWrpJUg99BoCd_1TL3-mCJXxB_qsvTOVjwTlJD6Z_2wOyOwX2oaP9hPL23zYRRk"
 PROJECTS_FILE_PATH = "/Project_Data/projects_data_weekly.xlsx"
 HR_FILE_LOCAL = "Human Resources.xlsx"
 
-# Function to Refresh Access Token
-def refresh_access_token():
-    """Refresh Dropbox access token."""
-    url = "https://api.dropbox.com/oauth2/token"
-    data = {
-        "grant_type": "refresh_token",
-        "refresh_token": REFRESH_TOKEN,
-        "client_id": APP_KEY,
-        "client_secret": APP_SECRET,
-    }
-    response = requests.post(url, data=data)
-    if response.status_code == 200:
-        return response.json()["access_token"]
-    else:
-        st.error("Failed to refresh Dropbox access token.")
-        raise Exception(f"Token Refresh Error: {response.json()}")
-
-# Dropbox Functions with Token Refresh
+# Dropbox Functions
 def download_from_dropbox(file_path):
-    """Download a file from Dropbox with token refresh logic."""
+    """Download a file from Dropbox."""
     try:
-        access_token = refresh_access_token()
-        dbx = dropbox.Dropbox(access_token)
+        dbx = dropbox.Dropbox(ACCESS_TOKEN)
         metadata, res = dbx.files_download(file_path)
         return pd.ExcelFile(res.content)
     except dropbox.exceptions.ApiError as e:
@@ -44,13 +21,12 @@ def download_from_dropbox(file_path):
             return None
         else:
             st.error(f"Error downloading file: {e}")
-            raise
+            return None
 
 def upload_to_dropbox(df, dropbox_path):
-    """Upload a DataFrame to Dropbox as an Excel file with token refresh logic."""
+    """Upload a DataFrame to Dropbox as an Excel file."""
     try:
-        access_token = refresh_access_token()
-        dbx = dropbox.Dropbox(access_token)
+        dbx = dropbox.Dropbox(ACCESS_TOKEN)
         with pd.ExcelWriter("temp.xlsx", engine="openpyxl") as writer:
             df.to_excel(writer, index=False)
         with open("temp.xlsx", "rb") as f:
@@ -58,7 +34,6 @@ def upload_to_dropbox(df, dropbox_path):
         st.success(f"Data successfully uploaded to {dropbox_path}.")
     except Exception as e:
         st.error(f"Error uploading data: {e}")
-        raise
 
 def ensure_dropbox_projects_file_exists(file_path):
     """Ensure the projects file exists in Dropbox, create if not."""
