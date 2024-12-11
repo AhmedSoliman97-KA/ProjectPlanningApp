@@ -24,21 +24,17 @@ def get_access_token():
     else:
         raise Exception("Authentication failed: " + str(result))
 
-def download_file_from_onedrive(access_token, file_path):
-    url = f"https://1drv.ms/x/c/dc92d57d369f0c6e/Ee1_xPk8fv9HihGaGmX2fx0BNEiTAKFIPfhsneI7O9425g?e=sHGtjC"
+def list_onedrive_files(access_token):
+    url = "https://graph.microsoft.com/v1.0/me/drive/root/children"
     headers = {"Authorization": f"Bearer {access_token}"}
     response = requests.get(url, headers=headers)
-    
-    # Debug logs
-    st.write(f"Request URL: {url}")
-    st.write(f"Response Status: {response.status_code}")
-    if response.status_code != 200:
-        st.write("Response Content:", response.text)  # Show the response content
-
     if response.status_code == 200:
-        return pd.read_excel(BytesIO(response.content), engine="openpyxl")
+        files = response.json()
+        for file in files["value"]:
+            print(f"Name: {file['name']}, Path: {file['parentReference']['path']}")
+        return files
     else:
-        raise Exception(f"Failed to download file: {response.status_code} - {response.text}")
+        raise Exception(f"Failed to list files: {response.status_code} - {response.text}")
 
 # Upload a file to OneDrive
 def upload_file_to_onedrive(access_token, file_path, data_frame):
