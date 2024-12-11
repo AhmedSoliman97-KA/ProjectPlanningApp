@@ -25,7 +25,7 @@ def get_access_token():
 
 # Download a file from OneDrive
 def download_file_from_onedrive(access_token, file_path):
-    url = f"https://1drv.ms/x/c/dc92d57d369f0c6e/Ee1_xPk8fv9HihGaGmX2fx0BNEiTAKFIPfhsneI7O9425g?e=Vpr9GD"
+    url = f"https://1drv.ms/x/c/dc92d57d369f0c6e/Ee1_xPk8fv9HihGaGmX2fx0BNEiTAKFIPfhsneI7O9425g?download=1"
     headers = {"Authorization": f"Bearer {access_token}"}
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
