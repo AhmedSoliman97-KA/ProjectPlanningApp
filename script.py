@@ -51,29 +51,18 @@ def ensure_file_exists(file_path, dropbox_path, columns=None):
                 upload_to_dropbox(file_path, dropbox_path, ACCESS_TOKEN)
                 print(f"File created and uploaded: {file_path}")
 
-# Load Engineers Data
-def load_engineers(file_path, selected_section):
-    """Load engineer names from the Human Resources file."""
-    try:
-        data = pd.read_excel(file_path, sheet_name=selected_section)
-        return data
-    except Exception as e:
-        st.error(f"Error loading Human Resources data: {e}")
-        return pd.DataFrame()
-
-# Add Calculated Fields
-def add_calculated_fields(project_data, hr_data):
-    """Add calculated fields to project data."""
-    project_data = project_data.copy()
-    project_data["Remaining Hours"] = project_data["Budgeted Hrs"] - project_data.get("Spent Hrs", 0)
-    project_data = project_data.merge(hr_data[["Name", "Cost/Hour"]], left_on="Personnel", right_on="Name", how="left")
-    project_data["Budgeted Cost"] = project_data["Budgeted Hrs"] * project_data["Cost/Hour"]
-    project_data["Remaining Cost"] = project_data["Remaining Hours"] * project_data["Cost/Hour"]
-    project_data.drop(columns=["Name"], inplace=True)  # Drop redundant column
-    return project_data
+# Clear Cache Function
+def reset_session_state():
+    """Clear session state to remove cached data."""
+    if "engineer_allocation" in st.session_state:
+        del st.session_state["engineer_allocation"]
 
 # Main Application
 def main():
+    # Clear session state if the file is deleted
+    if not os.path.exists(LOCAL_PROJECTS_FILE):
+        reset_session_state()
+
     st.image("image.png", use_container_width=True)
     st.title("Water & Environment Project Planning")
 
@@ -102,8 +91,8 @@ def main():
     selected_section = st.selectbox("Choose a section", sections)
 
     # Load Engineers
-    hr_data = load_engineers(LOCAL_HR_FILE, selected_section)
-    engineers = hr_data["Name"].dropna().tolist() if not hr_data.empty else []
+    hr_data = pd.read_excel(LOCAL_HR_FILE, sheet_name=selected_section)
+    engineers = hr_data["Name"].dropna().tolist()
     if not engineers:
         st.warning("No engineers found in the selected section.")
         return
@@ -158,21 +147,8 @@ def main():
                     except FileNotFoundError:
                         existing_data = pd.DataFrame(columns=summary_data.columns)
 
-                    # Remove duplicate entries based on unique keys
-                    unique_keys = [
-                        f"{row['Project ID']}_{row['Project Name']}_{row['Personnel']}_{row['Week']}"
-                        for _, row in summary_data.iterrows()
-                    ]
-                    existing_data = existing_data[
-                        ~existing_data.apply(
-                            lambda row: f"{row['Project ID']}_{row['Project Name']}_{row['Personnel']}_{row['Week']}"
-                            in unique_keys, axis=1
-                        )
-                    ]
-
                     # Append and save
                     final_data = pd.concat([existing_data, summary_data], ignore_index=True)
-                    final_data = add_calculated_fields(final_data, hr_data)
                     final_data.to_excel(LOCAL_PROJECTS_FILE, index=False)
 
                     # Upload to Dropbox
@@ -180,10 +156,6 @@ def main():
                     st.success(f"Project '{project_name}' submitted successfully!")
                 except Exception as e:
                     st.error(f"Error submitting project: {e}")
-
-    elif action == "Update Existing Project":
-        st.subheader("Update Existing Project")
-        pass  # Logic for updating projects.
 
 if __name__ == "__main__":
     main()
