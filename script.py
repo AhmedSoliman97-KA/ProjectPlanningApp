@@ -14,6 +14,10 @@ LOCAL_PROJECTS_FILE = "projects_data_weekly.xlsx"
 DROPBOX_PROJECTS_PATH = f"{DROPBOX_FOLDER_PATH}/projects_data_weekly.xlsx"
 
 # Dropbox Functions
+if os.path.exists(LOCAL_PROJECTS_FILE):
+    print("File exists locally and ready to upload.")
+else:
+    print("Local file not found. Cannot upload.")
 def upload_to_dropbox(file_path, dropbox_path, access_token):
     """Upload a file to Dropbox."""
     try:
