@@ -108,7 +108,7 @@ def main():
     selected_engineers = st.multiselect("Select Engineers", engineers)
 
     # Initialize Allocation Data
-    if "engineer_allocation" not in st.session_state or action == "Create New Project":
+    if "engineer_allocation" not in st.session_state:
         st.session_state.engineer_allocation = {}
 
     for engineer in selected_engineers:
@@ -142,12 +142,11 @@ def main():
 
         if st.button("Submit Project"):
             try:
-                # Remove older data if creating a new project
-                if action == "Create New Project":
+                # Load existing data
+                try:
                     existing_data = pd.read_excel(LOCAL_PROJECTS_FILE)
-                    existing_data = existing_data[existing_data["Project ID"] != project_id]
-                else:
-                    existing_data = pd.read_excel(LOCAL_PROJECTS_FILE)
+                except FileNotFoundError:
+                    existing_data = pd.DataFrame(columns=summary_data.columns)
 
                 # Append and save
                 final_data = pd.concat([existing_data, summary_data], ignore_index=True)
