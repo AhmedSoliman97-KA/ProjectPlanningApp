@@ -5,7 +5,7 @@ import dropbox
 import os
 
 # Dropbox Access Token and Paths
-ACCESS_TOKEN = "sl.CCZ5A6jITRh7Hxzl_mQ2IwVGcgzjmZCVsnPf10S50iSQDBGp-aGyUVWRce98IEcMwoQQnfoY2oh1M0ehD2XsYXyIAvP0pTm-ZXBa7uMQBIPRInyfp81VtCkAg_NTvKxHQ89RWFV5qUHJKM0EUXQdXoQ"
+ACCESS_TOKEN = "sl.CCYge5AsHh7bfKIR8PyJb6Zl8USchh24GjgwNCWovNIgqIGSg7m8AMlF7OH3JcnaCTgVyReppdm8nAdwFeWvR51jCY3opZ5Lcznbv2K05t1m-oFZgv1n_tx_fYabLr7bI1tKWah1ilEPQMc4bOiR2kY"
 DROPBOX_FOLDER_PATH = "/Project_Data"
 HR_FILE_NAME = "Human Resources.xlsx"
 LOCAL_HR_FILE = HR_FILE_NAME
