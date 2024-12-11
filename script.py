@@ -100,10 +100,8 @@ def main():
         weeks = [f"Week {i}" for i in range(1, 5)]
 
         st.subheader("Assign Engineers and Weekly Hours")
-        selected_engineers = st.multiselect("Select Engineers", engineers)
-
         allocations = []
-        for engineer in selected_engineers:
+        for engineer in engineers:
             st.markdown(f"**Engineer: {engineer}**")
             for week in weeks:
                 budgeted_hours = st.number_input(
@@ -166,7 +164,6 @@ def main():
         except FileNotFoundError:
             st.warning("No existing project data found.")
 
-    # Download Latest File
     st.subheader("Download Latest File")
     if st.button("Download File"):
         with open(LOCAL_PROJECTS_FILE, "rb") as file:
