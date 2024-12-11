@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
+from calendar import month_name
 import dropbox
 
 # Dropbox Settings
@@ -97,7 +98,7 @@ def main():
         project_id = st.text_input("Project ID", help="Enter a unique ID for the project.")
         project_name = st.text_input("Project Name", help="Enter the name of the project.")
         selected_year = st.selectbox("Year", range(datetime.now().year - 5, datetime.now().year + 6), index=5)
-        selected_month = st.selectbox("Month", [datetime(1900, m, 1).strftime("%B") for m in range(1, 13)])
+        selected_month = st.selectbox("Month", list(month_name)[1:], index=datetime.now().month - 1)
 
         # Generate Weeks
         weeks = generate_weeks(selected_year, list(month_name).index(selected_month))
