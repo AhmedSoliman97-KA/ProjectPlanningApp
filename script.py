@@ -40,7 +40,9 @@ def ensure_dropbox_projects_file_exists(file_path):
     if existing_file is None:
         st.warning(f"{file_path} not found in Dropbox. Creating a new file...")
         empty_df = pd.DataFrame(columns=[
-            "Project ID", "Project Name", "Personnel", "Week", "Year", "Month", "Budgeted Hrs", "Spent Hrs"
+            "Project ID", "Project Name", "Personnel", "Week", "Year", "Month",
+            "Budgeted Hrs", "Spent Hrs", "Remaining Hrs", "Cost/Hr", "Budgeted Cost",
+            "Remaining Cost", "Section", "Category"
         ])
         upload_to_dropbox(empty_df, file_path)
 
@@ -77,7 +79,9 @@ def main():
     projects_excel = download_from_dropbox(PROJECTS_FILE_PATH)
     if projects_excel is None:
         projects_data = pd.DataFrame(columns=[
-            "Project ID", "Project Name", "Personnel", "Week", "Year", "Month", "Budgeted Hrs", "Spent Hrs"
+            "Project ID", "Project Name", "Personnel", "Week", "Year", "Month",
+            "Budgeted Hrs", "Spent Hrs", "Remaining Hrs", "Cost/Hr", "Budgeted Cost",
+            "Remaining Cost", "Section", "Category"
         ])
     else:
         projects_data = pd.read_excel(projects_excel)
@@ -113,6 +117,12 @@ def main():
             weeks = generate_weeks(selected_year, list(month_name).index(selected_month))
 
             for engineer in selected_engineers:
+                # Fetch engineer details from Human Resources file
+                engineer_details = engineers_data[engineers_data["Name"] == engineer].iloc[0]
+                section = engineer_details.get("Section", "Unknown")
+                cost_per_hour = engineer_details.get("Cost/Hr", 0)
+                category = engineer_details.get("Category", "N/A")
+
                 st.markdown(f"### Engineer: {engineer}")
                 for week_label, _ in weeks:
                     budgeted_hours = st.number_input(
@@ -122,6 +132,11 @@ def main():
                         key=f"{engineer}_{week_label}"
                     )
                     if budgeted_hours > 0:
+                        spent_hours = 0  # Default spent hours for new projects
+                        remaining_hours = budgeted_hours - spent_hours
+                        budgeted_cost = budgeted_hours * cost_per_hour
+                        remaining_cost = remaining_hours * cost_per_hour
+
                         allocations.append({
                             "Project ID": project_id,
                             "Project Name": project_name,
@@ -130,7 +145,13 @@ def main():
                             "Year": selected_year,
                             "Month": selected_month,
                             "Budgeted Hrs": budgeted_hours,
-                            "Spent Hrs": None
+                            "Spent Hrs": spent_hours,
+                            "Remaining Hrs": remaining_hours,
+                            "Cost/Hr": cost_per_hour,
+                            "Budgeted Cost": budgeted_cost,
+                            "Remaining Cost": remaining_cost,
+                            "Section": section,
+                            "Category": category
                         })
 
             if st.button("Submit Project"):
@@ -190,6 +211,9 @@ def main():
                 step=1,
                 key=f"update_spent_{row['Personnel']}_{row['Week']}"
             )
+            remaining_hours = updated_budgeted - updated_spent
+            budgeted_cost = updated_budgeted * row["Cost/Hr"]
+            remaining_cost = remaining_hours * row["Cost/Hr"]
             updated_rows.append({
                 "Project ID": row["Project ID"],
                 "Project Name": row["Project Name"],
@@ -198,7 +222,13 @@ def main():
                 "Year": row["Year"],
                 "Month": row["Month"],
                 "Budgeted Hrs": updated_budgeted,
-                "Spent Hrs": updated_spent
+                "Spent Hrs": updated_spent,
+                "Remaining Hrs": remaining_hours,
+                "Cost/Hr": row["Cost/Hr"],
+                "Budgeted Cost": budgeted_cost,
+                "Remaining Cost": remaining_cost,
+                "Section": row["Section"],
+                "Category": row["Category"]
             })
 
         if st.button("Save Updates"):
@@ -235,4 +265,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
