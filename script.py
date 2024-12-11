@@ -136,7 +136,7 @@ def main():
 
     # Display Current Data
     if st.session_state.engineer_allocation:
-        st.subheader("Current Data")
+        st.subheader("Allocation Summary")
         summary_data = pd.DataFrame(st.session_state.engineer_allocation.values())
         st.dataframe(summary_data)
 
@@ -158,6 +158,21 @@ def main():
                 st.success(f"Project '{project_name}' submitted successfully!")
             except Exception as e:
                 st.error(f"Error submitting project: {e}")
+
+    # Download Latest File Button
+    st.subheader("Download Latest File")
+    if st.button("Download Latest File"):
+        try:
+            download_from_dropbox(DROPBOX_PROJECTS_PATH, LOCAL_PROJECTS_FILE, ACCESS_TOKEN)
+            with open(LOCAL_PROJECTS_FILE, "rb") as file:
+                st.download_button(
+                    label="Download Project Data",
+                    data=file,
+                    file_name="projects_data_weekly.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+        except Exception as e:
+            st.error(f"Error downloading file: {e}")
 
 if __name__ == "__main__":
     main()
