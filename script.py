@@ -3,17 +3,40 @@ import pandas as pd
 from datetime import datetime, timedelta
 from calendar import month_name
 import dropbox
+import requests
 
-# Dropbox Settings
-ACCESS_TOKEN = "sl.u.AFbOcrJt3zYRJM2tXw0zcteio4m0PGnbB6OsgBRRw4y8wZlNuEJfMu_Aazu_J8cZBlYpZFqUFU7aVpTMfVQcnOx4Sy_kmuxw4hOeYMAtd7A4XXkT7zrq29eAXyTsh-_D0JpGAqE0Yw-4Cb1YX-XmPESzx7me-IhvkCuKp8vn7I6IICXO_pWrQa2ymPqDpj14mdEV4nmmJs-INZyqnFS3RHOdbPULyGnF7PwlHiXDXKZ3kC6AoG9mQZIJxupJzn7c2g_2kN1nzPX8FNS50hQ78tZD6x0Vvx3y6hAd6NT2kb14oX2uiPafTn8lb40ZDKMrQq_6fKHqR4ZwSlpTP5UwrzLsMLi-hBShJHfwYCcc2pNj0KUJEe4XZ3O_EuhhQ63N95TwV8oNU-aU-nx73cDBL5i98wJZi8d7D0qHL23W7FVqiCuWiDgO9HmT18h8R3RBEvUHxTDgqrOW0LMi7br9Vk2jutW5wGJwQabvdVAGbF1M-98t0R9PuBR0m2yzR2zvfgtTnkwsHBObKdAHQjR6fYer9Fp0VIyyurX2S4jl8yzlxIvOHVfHX1qwmXO-Jk0WR1TJXSAPJCmvYfpQgxYQQSc08OqGN_tFTR4Io2fsNnSGfquenUN3-P6wHDCSCiMD55tHIAe2_RuprEMrODDI1-Gu7EygNLbdilIzzd8PNgnVWlb0QdObgdxCYIWbCo9Vbn28yZJwwHRiKXIASQKPZfrqYp6sS_HgEtRJ4GsxOAo7L_OnRW2hR5N9Hx_704_nDYZuJje4KlRYVuAHDnpvdwffyLWhcckgPeaM_ZBVXrgs73gEyS4yaAxFJHWuD8oNunzaf7QTxTZD2lFDlJ0Ov4TAAqmyujqHlYNJpgv9veB06I92Ssrw0VlvVYPvfS-QpYFenSlcQJmN9pQo7Zktt-CEgY3iWlFp0IuKdUbLobfNZiRPbmF25xkWwkb7xbDZKDUMsDoUanp-vhboLv0Prb4450oF_6x5lqDsdFEtn8jw2sHBpTqpLNqtfUBHRCrwlGh_8ZOtoMQXxBWT1MoGR5A_xZTYmibjk6Tynn0_kFTr_h_lca71Jh__8BdIX5oO14hHApNCsIWmCjKsULw8TQgnrOLnP3FQJvmV4mESebE01PzNgrxU8JGtk09vDQrmBTjBTColuIdm6lYoBIuJCHbPuLIshw9WXeAW1QA62ebP0Aw4Oj5vsC4hA6pykDXpAMb70Oja-LDvPJnXUW_sWHHqXQPFI1q9RtQQVe1R48s8YiEv1hOFrHrRgFIiuJrw_otcCA7rgzh9_LyBo4g051AEx9Clvju9mW1JKbiWOaGV9XOiOYI1FPR_Zht_21q3oNoKuj7TFyTLb1iXREN79npfUCS44v4MLJjhcg9NOV8ho8P263xyO1HMtoq-LqicI2onHAio6L3XEvsGEWaDBDyc0agqQjFfQPdzY2_Dd8K4KmVphmAaHVQXrX-4oosUtCI"
+# Dropbox App Credentials
+APP_KEY = "YOUR_APP_KEY"
+APP_SECRET = "YOUR_APP_SECRET"
+REFRESH_TOKEN = "YOUR_REFRESH_TOKEN"
+
+# Dropbox File Paths
 PROJECTS_FILE_PATH = "/Project_Data/projects_data_weekly.xlsx"
 HR_FILE_LOCAL = "Human Resources.xlsx"
 
-# Dropbox Functions
+# Function to Refresh Access Token
+def refresh_access_token():
+    """Refresh Dropbox access token."""
+    url = "https://api.dropbox.com/oauth2/token"
+    data = {
+        "grant_type": "refresh_token",
+        "refresh_token": REFRESH_TOKEN,
+        "client_id": APP_KEY,
+        "client_secret": APP_SECRET,
+    }
+    response = requests.post(url, data=data)
+    if response.status_code == 200:
+        return response.json()["access_token"]
+    else:
+        st.error("Failed to refresh Dropbox access token.")
+        raise Exception(f"Token Refresh Error: {response.json()}")
+
+# Dropbox Functions with Token Refresh
 def download_from_dropbox(file_path):
-    """Download a file from Dropbox."""
+    """Download a file from Dropbox with token refresh logic."""
     try:
-        dbx = dropbox.Dropbox(ACCESS_TOKEN)
+        access_token = refresh_access_token()
+        dbx = dropbox.Dropbox(access_token)
         metadata, res = dbx.files_download(file_path)
         return pd.ExcelFile(res.content)
     except dropbox.exceptions.ApiError as e:
@@ -21,12 +44,13 @@ def download_from_dropbox(file_path):
             return None
         else:
             st.error(f"Error downloading file: {e}")
-            return None
+            raise
 
 def upload_to_dropbox(df, dropbox_path):
-    """Upload a DataFrame to Dropbox as an Excel file."""
+    """Upload a DataFrame to Dropbox as an Excel file with token refresh logic."""
     try:
-        dbx = dropbox.Dropbox(ACCESS_TOKEN)
+        access_token = refresh_access_token()
+        dbx = dropbox.Dropbox(access_token)
         with pd.ExcelWriter("temp.xlsx", engine="openpyxl") as writer:
             df.to_excel(writer, index=False)
         with open("temp.xlsx", "rb") as f:
@@ -34,6 +58,7 @@ def upload_to_dropbox(df, dropbox_path):
         st.success(f"Data successfully uploaded to {dropbox_path}.")
     except Exception as e:
         st.error(f"Error uploading data: {e}")
+        raise
 
 def ensure_dropbox_projects_file_exists(file_path):
     """Ensure the projects file exists in Dropbox, create if not."""
@@ -183,4 +208,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
