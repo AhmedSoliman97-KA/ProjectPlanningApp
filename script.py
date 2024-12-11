@@ -1,159 +1,102 @@
 import streamlit as st
 import pandas as pd
-import requests
-import msal
-from io import BytesIO
-from datetime import datetime, timedelta
+import dropbox
+from datetime import datetime
 
-# OneDrive API credentials
-CLIENT_ID = "a7a2fb29-66bd-4e16-a8eb-65d6b7f7b3f1"  # Application (client) ID
-TENANT_ID = "c6344517-088e-43b9-970a-f93b99bb4fde"  # Directory (tenant) ID
-CLIENT_SECRET = "adn8Q~Jo1shdXUYouk41Z6D9DVokrZdsEfXLTcN6"  # Secret Value
+# Dropbox Access Token (replace with your token)
+ACCESS_TOKEN = "sl.u.AFbSi0u1JEt41HfRfC_wgf5aX0jwZCocifSqL6t8JaJvCL1Q86YPZMr9VcQevwbYrsqY87MzcGxefFW3kL_acbhKoOuqZ2dwrNKTP-2HhBFJdZm9NZWgrLgqD_qMBJBlbCF7IjI0nRNeUzgm44Q5fBZrUGFvYbDznCb_E3NdsYUpdm5vML2362RLKifpuRK2Sh0K6da6MbyysftZCf11oEaAHS-jY45uP21ps5geNPm5JRSTffJ0Z2zj_GZ1AWpSwJCFPsLXYJRmYxLwTNh8OxFSCgQU_gRCrG3ymr99wWNNN-njybj47lR27dCmPKj6jhhQT14Tu7nG9E-w8Jt9OywK3msYI18tCO_SZ21A3GqOFwdVghSazBn6s3uXzeDN8qmNteTSi1RWkHIOyTa_ItYkkWbY7xts_mIkWQpUhdsxb9PfA-jJQtEy7yt2cMD-sEekDJhHBtejqHIVNSBA1QJbA7Dc_lmu34i7Jf_1CxPfqZdsWdrbqtQbl6VAFS8xR0FtBtnf4il1FHsEV4eyoc93OLGeWYf-ikLE_KPS5vwXyHxXxWO3DNWu3tVu8BmXiH26B7BYVkRaD6PP-ANRtqS4Vi27Ve21N0GMopBqEyiwz63lck8Fxu2NgdWvPntYqcIjjgHyQVGsP-jBXgFvja-KJHMzHC3V9hMiQ4CPJMnnB9kFU9nHWVLpHxhQvMKM99XW8hqgIzl_RMXDajmvxeXG2fvTrT3ktEl8vXRrqg2maIN3-zq5ef1dhelmkfGvV7I7nI0Zv3stGW3F0WYJFX33hrCEl7MdToABlpPqlMA0b80njb5nF_YoAuayKWUCemaIYtAOn5PnsIzbE6tshtb0iIVldF4vStfgjIG6FuOh7IiYaU1FrIWHGBhs0yey_-IDGt_RAmuHRTp2IW_Jt5ByxrR748H9JignxTmGSfJUKQuaX6vSkzThIoJ6elkcj6JFXOphbJ33_DwuPVm1cXfk9NGz8Fagb56TQdb8MtDaP1wqg2ERur_PIOv3vuHHsKqrdm5Y4bgXryrwEUDKf-mfXhDivk1ATGUfghfgVnIBLznpMgoWoML_TCnuUaPrfa5Ajyo2goHHNeuZQ8nzHB4AMo6d7Tb_HxB9AVkwddoJ2O-sQm-ks0rv5VpdiiApjEy7Hz9YFwgqC7bMf-Ex5BMiFmVyrrvT_BinF5KWuXS_dORZsjdQwwPZsNr2TpX2rIZ76dvJAtPWSqiVo6gSouAnKFlrNmTc5JrHPBTV_GH4H81lYGLVj2HycAY7c3xD_wQ37HVs_R3F7BGcVWoEUm1fzgD3Darj3oQz4MS75hZGEDP1YKcmuM3s6J6O6kSrv_fwcF3oPilsRWBQYYwKiVeJLamanRdxxnFndMEPhZ0s5n5EuXg6_v3rsm0FOmTyVNKTOJ1cYAZ5Wo5KHkhpDRPMX4qkrDdV4_F7v59tRDd5iA"
 
-AUTHORITY = f"https://login.microsoftonline.com/{TENANT_ID}"
-SCOPE = ["https://graph.microsoft.com/.default"]
+# Dropbox Functions
+def save_to_dropbox(file_path, file_name, access_token):
+    """Uploads a file to Dropbox."""
+    dbx = dropbox.Dropbox(access_token)
+    with open(file_path, "rb") as f:
+        dbx.files_upload(f.read(), f"/{file_name}", mode=dropbox.files.WriteMode("overwrite"))
+    print(f"File {file_name} uploaded to Dropbox.")
 
-# Authenticate and get access token
-def get_access_token():
-    app = msal.ConfidentialClientApplication(
-        CLIENT_ID, authority=AUTHORITY, client_credential=CLIENT_SECRET
-    )
-    result = app.acquire_token_for_client(scopes=SCOPE)
-    if "access_token" in result:
-        return result["access_token"]
-    else:
-        raise Exception("Authentication failed: " + str(result))
+def download_from_dropbox(file_name, access_token):
+    """Downloads a file from Dropbox."""
+    dbx = dropbox.Dropbox(access_token)
+    metadata, res = dbx.files_download(f"/{file_name}")
+    with open(file_name, "wb") as f:
+        f.write(res.content)
+    print(f"File {file_name} downloaded from Dropbox.")
 
-# List files in OneDrive root directory
-def list_onedrive_files(access_token):
-    url = "https://graph.microsoft.com/v1.0/me/drive/root/children"
-    headers = {"Authorization": f"Bearer {access_token}"}
-    response = requests.get(url, headers=headers)
-    if response.status_code == 200:
-        files = response.json()["value"]
-        file_list = [{"name": file["name"], "id": file["id"]} for file in files]
-        return file_list
-    else:
-        raise Exception(f"Failed to list files: {response.status_code} - {response.text}")
+# Save Project Data Function
+def save_project_data(dataframe):
+    """Save the project data locally and upload to Dropbox."""
+    file_path = "Project_Data.xlsx"
+    file_name = "Project_Data.xlsx"
 
-# Download a file from OneDrive
-def download_file_from_onedrive(access_token, file_id):
-    url = f"https://graph.microsoft.com/v1.0/me/drive/items/{file_id}/content"
-    headers = {"Authorization": f"Bearer {access_token}"}
-    response = requests.get(url, headers=headers)
-    if response.status_code == 200:
-        return pd.read_excel(BytesIO(response.content), engine="openpyxl")
-    else:
-        raise Exception(f"Failed to download file: {response.status_code} - {response.text}")
+    # Save to local file
+    dataframe.to_excel(file_path, index=False)
 
-# Upload a file to OneDrive
-def upload_file_to_onedrive(access_token, file_name, data_frame):
-    url = f"https://graph.microsoft.com/v1.0/me/drive/root:/{file_name}:/content"
-    headers = {
-        "Authorization": f"Bearer {access_token}",
-        "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    }
-    with BytesIO() as output:
-        with pd.ExcelWriter(output, engine="openpyxl") as writer:
-            data_frame.to_excel(writer, index=False)
-        output.seek(0)
-        response = requests.put(url, headers=headers, data=output)
-    if response.status_code in [200, 201]:
-        print(f"File uploaded successfully to {file_name}.")
-    else:
-        raise Exception(f"Failed to upload file: {response.status_code} - {response.text}")
+    # Upload to Dropbox
+    save_to_dropbox(file_path, file_name, ACCESS_TOKEN)
 
-# Main function for the app
+# Streamlit App
 def main():
+    st.image("image.png", use_container_width=True)
     st.title("Water & Environment Project Planning")
 
-    # Authenticate and get access token
-    try:
-        access_token = get_access_token()
-        st.success("Successfully authenticated with OneDrive.")
-    except Exception as e:
-        st.error(f"Authentication failed: {e}")
-        return
+    # Project Details
+    st.subheader("Step 1: Enter Project Details")
+    project_id = st.text_input("Project ID", help="Enter the unique ID for the project.")
+    project_name = st.text_input("Project Name", help="Enter the name of the project.")
 
-    # List files in OneDrive and select the required files
-    try:
-        files = list_onedrive_files(access_token)
-        file_names = [file["name"] for file in files]
-        file_dict = {file["name"]: file["id"] for file in files}
+    # Engineer and Hours Input
+    st.subheader("Step 2: Assign Engineers and Hours")
+    engineers = st.multiselect("Select Engineers", ["Alice", "Bob", "Charlie"])
+    week = st.selectbox("Select Week", [f"Week {i}" for i in range(1, 53)])
+    hours = st.number_input("Hours", min_value=0, step=1, help="Enter hours for the selected week.")
 
-        st.write("Available files in OneDrive:")
-        selected_hr_file = st.selectbox("Select Human Resources file", file_names)
-        hr_file_id = file_dict[selected_hr_file]
-        hr_data = download_file_from_onedrive(access_token, hr_file_id)
-        st.write("Human Resources Data:")
-        st.dataframe(hr_data)
-    except Exception as e:
-        st.error(f"Failed to load Human Resources data: {e}")
-        return
+    # Initialize Data Storage
+    if "project_data" not in st.session_state:
+        st.session_state.project_data = []
 
-    # Load or initialize project data
-    try:
-        selected_project_file = st.selectbox("Select Projects file", file_names)
-        project_file_id = file_dict[selected_project_file]
-        project_data = download_file_from_onedrive(access_token, project_file_id)
-    except Exception:
-        st.warning("No existing project data found. Initializing a new file.")
-        project_data = pd.DataFrame(columns=["Project ID", "Project Name", "Personnel", "Week", "Budgeted Hrs", "Spent Hrs"])
+    # Add Data Button
+    if st.button("Add Hours"):
+        for engineer in engineers:
+            st.session_state.project_data.append({
+                "Project ID": project_id,
+                "Project Name": project_name,
+                "Engineer": engineer,
+                "Week": week,
+                "Hours": hours,
+                "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            })
+        st.success("Hours added successfully!")
 
-    # Select whether to create or update a project
-    action = st.radio("Choose an action", ["Create New Project", "Update Existing Project"])
+    # Display Current Data
+    if st.session_state.project_data:
+        st.subheader("Current Data")
+        data = pd.DataFrame(st.session_state.project_data)
+        st.dataframe(data)
 
-    if action == "Create New Project":
-        st.subheader("Create a New Project")
-        project_id = st.text_input("Project ID")
-        project_name = st.text_input("Project Name")
-        year = st.number_input("Year", min_value=2000, max_value=2100, value=datetime.now().year)
-        month = st.number_input("Month", min_value=1, max_value=12, value=datetime.now().month)
-        weeks = [f"Week {i}" for i in range(1, 5)]  # Example weekly labels
+    # Submit Project Button
+    if st.button("Submit Project"):
+        if st.session_state.project_data:
+            # Save data to Dropbox
+            data = pd.DataFrame(st.session_state.project_data)
+            save_project_data(data)
+            st.success("Project data saved and uploaded to Dropbox!")
+        else:
+            st.error("No data to submit!")
 
-        if "new_project_allocations" not in st.session_state:
-            st.session_state.new_project_allocations = []
-
-        personnel_list = hr_data["Name"].dropna().unique().tolist()
-        for person in personnel_list:
-            for week in weeks:
-                hours = st.number_input(f"{week} Hours for {person}", min_value=0, step=1, key=f"{person}_{week}")
-                if hours > 0:
-                    st.session_state.new_project_allocations.append(
-                        {"Project ID": project_id, "Project Name": project_name, "Personnel": person, "Week": week, "Budgeted Hrs": hours}
-                    )
-
-        if st.button("Submit Project"):
-            new_data = pd.DataFrame(st.session_state.new_project_allocations)
-            project_data = pd.concat([project_data, new_data], ignore_index=True)
-            try:
-                upload_file_to_onedrive(access_token, selected_project_file, project_data)
-                st.success("Project data saved successfully!")
-            except Exception as e:
-                st.error(f"Failed to save project data: {e}")
-
-    elif action == "Update Existing Project":
-        st.subheader("Update an Existing Project")
-        project_names = project_data["Project Name"].unique()
-        selected_project = st.selectbox("Select Project", project_names)
-        filtered_data = project_data[project_data["Project Name"] == selected_project]
-
-        for index, row in filtered_data.iterrows():
-            budgeted = st.number_input(f"Budgeted Hours for {row['Personnel']} - {row['Week']}", value=row["Budgeted Hrs"])
-            spent = st.number_input(f"Spent Hours for {row['Personnel']} - {row['Week']}", value=row["Spent Hrs"])
-            project_data.loc[index, "Budgeted Hrs"] = budgeted
-            project_data.loc[index, "Spent Hrs"] = spent
-
-        if st.button("Save Updates"):
-            try:
-                upload_file_to_onedrive(access_token, selected_project_file, project_data)
-                st.success("Updates saved successfully!")
-            except Exception as e:
-                st.error(f"Failed to save updates: {e}")
-
-    # Display summary
-    st.subheader("Project Summary")
-    st.dataframe(project_data)
+    # Download Button
+    st.subheader("Download Latest File")
+    if st.button("Download Latest File"):
+        try:
+            download_from_dropbox("Project_Data.xlsx", ACCESS_TOKEN)
+            with open("Project_Data.xlsx", "rb") as file:
+                st.download_button(
+                    label="Download Project Data",
+                    data=file,
+                    file_name="Project_Data.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+        except Exception as e:
+            st.error(f"Error downloading file: {e}")
 
 if __name__ == "__main__":
     main()
