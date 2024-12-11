@@ -55,6 +55,16 @@ def clear_all_session_data():
     for key in list(st.session_state.keys()):
         del st.session_state[key]
 
+# Load Engineers from Human Resources
+def load_engineers(file_path, selected_section):
+    """Load engineer names from the Human Resources file."""
+    try:
+        data = pd.read_excel(file_path, sheet_name=selected_section)
+        return data["Name"].dropna().tolist()
+    except Exception as e:
+        st.error(f"Error loading Human Resources data: {e}")
+        return []
+
 # Main Application
 def main():
     # Ensure files are initialized
@@ -154,10 +164,11 @@ def main():
         st.subheader("Update Existing Project")
         try:
             project_data = pd.read_excel(LOCAL_PROJECTS_FILE)
-            st.dataframe(project_data)
-
-            # Update functionality here (spent hours and budgeted hours)
-            st.warning("Update functionality can be added as needed.")
+            if not project_data.empty:
+                st.dataframe(project_data)
+                st.warning("Update functionality can be expanded here to edit budgeted and spent hours.")
+            else:
+                st.warning("No projects found to update.")
         except FileNotFoundError:
             st.warning("No projects found to update.")
 
