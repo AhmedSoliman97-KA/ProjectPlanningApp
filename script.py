@@ -24,11 +24,17 @@ def get_access_token():
     else:
         raise Exception("Authentication failed: " + str(result))
 
-# Download a file from OneDrive
 def download_file_from_onedrive(access_token, file_path):
-    url = f"https://1drv.ms/x/c/dc92d57d369f0c6e/Ee1_xPk8fv9HihGaGmX2fx0BNEiTAKFIPfhsneI7O9425g?downlaod=1"
+    url = f"https://1drv.ms/x/c/dc92d57d369f0c6e/Ee1_xPk8fv9HihGaGmX2fx0BNEiTAKFIPfhsneI7O9425g?e=sHGtjC"
     headers = {"Authorization": f"Bearer {access_token}"}
     response = requests.get(url, headers=headers)
+    
+    # Debug logs
+    st.write(f"Request URL: {url}")
+    st.write(f"Response Status: {response.status_code}")
+    if response.status_code != 200:
+        st.write("Response Content:", response.text)  # Show the response content
+
     if response.status_code == 200:
         return pd.read_excel(BytesIO(response.content), engine="openpyxl")
     else:
