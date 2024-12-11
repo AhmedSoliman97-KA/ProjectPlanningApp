@@ -51,7 +51,7 @@ def ensure_file_exists(file_path, dropbox_path, columns=None):
                 upload_to_dropbox(file_path, dropbox_path, ACCESS_TOKEN)
                 print(f"File created and uploaded: {file_path}")
 
-# Clear Cache Function
+# Clear Session State Function
 def reset_session_state():
     """Clear session state to remove cached data."""
     if "engineer_allocation" in st.session_state:
@@ -139,6 +139,16 @@ def main():
             summary_data = pd.DataFrame(st.session_state.engineer_allocation.values())
             st.dataframe(summary_data)
 
+            # Delete an allocation
+            st.subheader("Delete Allocation")
+            to_delete = st.text_input("Enter Row Index to Delete")
+            if st.button("Delete Row"):
+                if to_delete.isdigit() and int(to_delete) in summary_data.index:
+                    summary_data.drop(index=int(to_delete), inplace=True)
+                    st.session_state.engineer_allocation = summary_data.to_dict(orient="index")
+                    st.success(f"Deleted row {to_delete} successfully!")
+
+            # Submit Project Button
             if st.button("Submit Project"):
                 try:
                     # Load existing data
@@ -156,6 +166,17 @@ def main():
                     st.success(f"Project '{project_name}' submitted successfully!")
                 except Exception as e:
                     st.error(f"Error submitting project: {e}")
+
+            # Download File Button
+            st.subheader("Download Latest File")
+            if st.button("Download File"):
+                with open(LOCAL_PROJECTS_FILE, "rb") as file:
+                    st.download_button(
+                        label="Download Project File",
+                        data=file,
+                        file_name="projects_data_weekly.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    )
 
 if __name__ == "__main__":
     main()
