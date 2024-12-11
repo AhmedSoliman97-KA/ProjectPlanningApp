@@ -73,17 +73,15 @@ def main():
     else:
         projects_data = pd.read_excel(projects_excel)
 
-    # Extract unique sections from the project data
-    unique_sections = projects_data["Section"].dropna().str.strip().str.lower().unique().tolist()
-
     # Action Selection
     st.sidebar.subheader("Actions")
     action = st.sidebar.radio("Choose an Action", ["Create New Project", "Update Existing Project"])
 
     if action == "Create New Project":
         st.subheader("Create a New Project")
-        # Placeholder for creating new projects
-        st.write("Create new project workflow goes here.")
+        project_id = st.text_input("Project ID", help="Enter a unique ID for the project.")
+        project_name = st.text_input("Project Name", help="Enter the name of the project.")
+        st.write("Create project logic remains as-is for ms3.")
 
     elif action == "Update Existing Project":
         st.subheader("Update an Existing Project")
@@ -91,21 +89,21 @@ def main():
             st.warning("No existing projects found.")
             st.stop()
 
-        # Step 1: Filter by Section
-        st.subheader("Filter by Section")
+        # Step 1: Extract and Normalize Sections
+        unique_sections = projects_data["Section"].dropna().str.strip().str.lower().unique().tolist()
         selected_section = st.selectbox("Choose a Section", unique_sections)
 
         # Normalize sections for comparison
         selected_section_normalized = selected_section.strip().lower()
         projects_data["Section Normalized"] = projects_data["Section"].str.strip().str.lower()
 
-        # Filter projects
+        # Step 2: Filter Projects by Section
         filtered_projects = projects_data[projects_data["Section Normalized"] == selected_section_normalized]
         if filtered_projects.empty:
             st.warning(f"No projects found for the selected section: {selected_section}")
             st.stop()
 
-        # Step 2: Select Project
+        # Step 3: Select Project
         st.subheader("Select a Project")
         selected_project = st.selectbox("Select a Project", filtered_projects["Project Name"].unique())
         project_details = filtered_projects[filtered_projects["Project Name"] == selected_project]
@@ -114,7 +112,7 @@ def main():
         st.subheader(f"Summary of Current Allocations for '{selected_project}'")
         st.dataframe(project_details)
 
-        # Engineer Dropdown
+        # Step 4: Engineer Dropdown
         selected_engineer = st.selectbox("Select an Engineer", project_details["Personnel"].unique())
         engineer_details = project_details[project_details["Personnel"] == selected_engineer]
 
