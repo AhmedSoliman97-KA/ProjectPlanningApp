@@ -1,3 +1,5 @@
 streamlit
+msal
 pandas
+requests
 openpyxl
