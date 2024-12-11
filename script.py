@@ -47,17 +47,6 @@ def ensure_dropbox_projects_file_exists(file_path):
         ])
         upload_to_dropbox(empty_df, file_path)
 
-# Generate Weeks for a Given Month
-def generate_weeks(year, month):
-    start_date = datetime(year, month, 1)
-    end_date = (start_date + timedelta(days=31)).replace(day=1)
-    weeks = []
-    while start_date < end_date:
-        week_label = f"Week {start_date.isocalendar()[1]} ({start_date.strftime('%b')})"
-        weeks.append((week_label, start_date))
-        start_date += timedelta(days=7)
-    return weeks
-
 # Main Application
 def main():
     st.image("image.png", use_container_width=True)
@@ -114,10 +103,9 @@ def main():
             st.subheader("Allocate Weekly Hours")
 
             # Generate Weeks
-            weeks = generate_weeks(selected_year, list(month_name).index(selected_month))
+            weeks = [f"Week {i}" for i in range(1, 5)]
 
             for engineer in selected_engineers:
-                # Fetch engineer details from Human Resources file
                 engineer_details = engineers_data[engineers_data["Name"] == engineer].iloc[0]
                 section = engineer_details.get("Section", "Unknown")
                 category = engineer_details.get("Category", "N/A")
@@ -125,12 +113,12 @@ def main():
                 cost_per_hour = cost_per_hour if not pd.isna(cost_per_hour) else 0
 
                 st.markdown(f"### Engineer: {engineer}")
-                for week_label, _ in weeks:
+                for week in weeks:
                     budgeted_hours = st.number_input(
-                        f"Budgeted Hours ({week_label}) for {engineer}",
+                        f"Budgeted Hours ({week}) for {engineer}",
                         min_value=0,
                         step=1,
-                        key=f"{engineer}_{week_label}"
+                        key=f"{engineer}_{week}"
                     )
                     if budgeted_hours > 0:
                         spent_hours = 0
@@ -142,7 +130,7 @@ def main():
                             "Project ID": project_id,
                             "Project Name": project_name,
                             "Personnel": engineer,
-                            "Week": week_label,
+                            "Week": week,
                             "Year": selected_year,
                             "Month": selected_month,
                             "Budgeted Hrs": budgeted_hours,
@@ -160,27 +148,11 @@ def main():
             st.subheader("Summary of Allocations")
             allocation_df = pd.DataFrame(allocations)
             st.dataframe(allocation_df)
-            total_budgeted = allocation_df["Budgeted Hrs"].sum()
-            st.metric("Total Budgeted Hours", total_budgeted)
 
         # Submit Button
         if st.button("Submit Project"):
             new_data = pd.DataFrame(allocations)
-            new_data["Composite Key"] = (
-                new_data["Project ID"] + "_" +
-                new_data["Project Name"] + "_" +
-                new_data["Personnel"] + "_" +
-                new_data["Week"]
-            )
-            projects_data["Composite Key"] = (
-                projects_data["Project ID"] + "_" +
-                projects_data["Project Name"] + "_" +
-                projects_data["Personnel"] + "_" +
-                projects_data["Week"]
-            )
-            updated_data = projects_data[~projects_data["Composite Key"].isin(new_data["Composite Key"])]
-            updated_data = pd.concat([updated_data, new_data], ignore_index=True)
-            updated_data.drop(columns=["Composite Key"], inplace=True)
+            updated_data = pd.concat([projects_data, new_data], ignore_index=True)
             upload_to_dropbox(updated_data, PROJECTS_FILE_PATH)
             st.success("Project submitted successfully!")
 
@@ -191,7 +163,6 @@ def main():
             st.stop()
 
         # Step 1: Filter by Section
-        st.subheader("Filter by Section")
         filtered_projects = projects_data[projects_data["Section"].str.strip().str.lower() == selected_section.strip().lower()]
         if filtered_projects.empty:
             st.warning(f"No projects found for the selected section: {selected_section}")
@@ -202,23 +173,15 @@ def main():
         selected_project = st.selectbox("Select a Project", filtered_projects["Project Name"].unique())
         project_details = filtered_projects[filtered_projects["Project Name"] == selected_project]
 
-        # Step 3: Summary of Current Allocations
+        # Display Project Details
         st.subheader(f"Summary of Current Allocations for '{selected_project}'")
         st.dataframe(project_details)
-        current_budgeted_hours = project_details["Budgeted Hrs"].sum()
-        current_spent_hours = project_details["Spent Hrs"].sum()
-        current_budgeted_cost = project_details["Budgeted Cost"].sum()
-        current_remaining_cost = project_details["Remaining Cost"].sum()
-        st.metric("Current Budgeted Hours", current_budgeted_hours)
-        st.metric("Current Spent Hours", current_spent_hours)
-        st.metric("Current Budgeted Cost", f"${current_budgeted_cost:,.2f}")
-        st.metric("Current Remaining Cost", f"${current_remaining_cost:,.2f}")
 
-        # Step 4: Select Engineer
+        # Engineer Dropdown
         selected_engineer = st.selectbox("Select an Engineer", project_details["Personnel"].unique())
         engineer_details = project_details[project_details["Personnel"] == selected_engineer]
 
-        # Step 5: Update Allocations
+        st.subheader(f"Update Allocations for {selected_engineer}")
         updated_rows = []
         for _, row in engineer_details.iterrows():
             updated_budgeted = st.number_input(
@@ -256,54 +219,14 @@ def main():
                 "Category": row["Category"]
             })
 
-        # Step 6: Summary of Updated Allocations
-        if updated_rows:
-            st.subheader("Summary of Updated Allocations")
-            updated_df = pd.DataFrame(updated_rows)
-            st.dataframe(updated_df)
-            updated_budgeted_hours = updated_df["Budgeted Hrs"].sum()
-            updated_spent_hours = updated_df["Spent Hrs"].sum()
-            updated_budgeted_cost = updated_df["Budgeted Cost"].sum()
-            updated_remaining_cost = updated_df["Remaining Cost"].sum()
-            st.metric("Updated Budgeted Hours", updated_budgeted_hours)
-            st.metric("Updated Spent Hours", updated_spent_hours)
-            st.metric("Updated Budgeted Cost", f"${updated_budgeted_cost:,.2f}")
-            st.metric("Updated Remaining Cost", f"${updated_remaining_cost:,.2f}")
-
         # Save Updates
         if st.button("Save Updates"):
             updated_rows_df = pd.DataFrame(updated_rows)
-            updated_rows_df["Composite Key"] = (
-                updated_rows_df["Project ID"] + "_" +
-                updated_rows_df["Project Name"] + "_" +
-                updated_rows_df["Personnel"] + "_" +
-                updated_rows_df["Week"]
-            )
-            projects_data["Composite Key"] = (
-                projects_data["Project ID"] + "_" +
-                projects_data["Project Name"] + "_" +
-                projects_data["Personnel"] + "_" +
-                projects_data["Week"]
-            )
-            remaining_data = projects_data[~projects_data["Composite Key"].isin(updated_rows_df["Composite Key"])]
+            remaining_data = projects_data[~projects_data.index.isin(project_details.index)]
             final_data = pd.concat([remaining_data, updated_rows_df], ignore_index=True)
-            final_data.drop(columns=["Composite Key"], inplace=True)
             upload_to_dropbox(final_data, PROJECTS_FILE_PATH)
-            st.success(f"Updates saved successfully!")
-
-    # Download Button
-    st.subheader("Download Project Data")
-    if st.button("Download File"):
-        with open("temp.xlsx", "rb") as file:
-            st.download_button(
-                label="Download Project File",
-                data=file,
-                file_name="projects_data_weekly.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
+            st.success("Updates saved successfully!")
 
 if __name__ == "__main__":
     main()
-
-
 
