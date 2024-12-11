@@ -91,12 +91,6 @@ def main():
     st.sidebar.subheader("Actions")
     action = st.sidebar.radio("Choose an Action", ["Create New Project", "Update Existing Project"])
 
-    # Section Selection
-    st.subheader("Section Selection")
-    selected_section = st.selectbox("Choose a Section", hr_sections)
-    engineers_data = hr_excel.parse(sheet_name=selected_section)
-    engineers = engineers_data["Name"].dropna().tolist()
-
     if action == "Create New Project":
         st.subheader("Create a New Project")
         project_id = st.text_input("Project ID", help="Enter a unique ID for the project.")
@@ -106,13 +100,15 @@ def main():
 
         # Engineer Selection from Dropdown
         st.subheader("Select Engineers for Allocation")
+        selected_section = st.selectbox("Choose a Section", hr_sections)
+        engineers_data = hr_excel.parse(sheet_name=selected_section)
+        engineers = engineers_data["Name"].dropna().tolist()
         selected_engineers = st.multiselect("Choose Engineers", options=engineers, help="Select engineers to allocate hours.")
 
-        if not selected_engineers:
-            st.warning("Please select at least one engineer to proceed.")
-        else:
+        allocations = []
+
+        if selected_engineers:
             st.subheader("Allocate Weekly Hours")
-            allocations = []
 
             # Generate Weeks
             weeks = generate_weeks(selected_year, list(month_name).index(selected_month))
@@ -122,12 +118,8 @@ def main():
                 engineer_details = engineers_data[engineers_data["Name"] == engineer].iloc[0]
                 section = engineer_details.get("Section", "Unknown")
                 category = engineer_details.get("Category", "N/A")
-
-                # Fetch and validate Cost/Hour
                 cost_per_hour = pd.to_numeric(engineer_details.get("Cost/Hour", 0), errors='coerce')
-                if pd.isna(cost_per_hour) or cost_per_hour <= 0:
-                    st.warning(f"Cost/Hour for {engineer} is missing or invalid. Defaulting to 0.")
-                    cost_per_hour = 0
+                cost_per_hour = cost_per_hour if not pd.isna(cost_per_hour) else 0
 
                 st.markdown(f"### Engineer: {engineer}")
                 for week_label, _ in weeks:
@@ -138,7 +130,7 @@ def main():
                         key=f"{engineer}_{week_label}"
                     )
                     if budgeted_hours > 0:
-                        spent_hours = 0  # Default spent hours for new projects
+                        spent_hours = 0
                         remaining_hours = budgeted_hours - spent_hours
                         budgeted_cost = budgeted_hours * cost_per_hour
                         remaining_cost = remaining_hours * cost_per_hour
@@ -160,37 +152,34 @@ def main():
                             "Category": category
                         })
 
-            if st.button("Submit Project"):
-                new_data = pd.DataFrame(allocations)
+        # Display Summary Allocation
+        if allocations:
+            st.subheader("Summary of Allocations")
+            allocation_df = pd.DataFrame(allocations)
+            st.dataframe(allocation_df)
+            total_budgeted = allocation_df["Budgeted Hrs"].sum()
+            st.metric("Total Budgeted Hours", total_budgeted)
 
-                # Generate Composite Key for New Data
-                new_data["Composite Key"] = (
-                    new_data["Project ID"] + "_" +
-                    new_data["Project Name"] + "_" +
-                    new_data["Personnel"] + "_" +
-                    new_data["Week"]
-                )
-
-                # Generate Composite Key for Existing Data
-                projects_data["Composite Key"] = (
-                    projects_data["Project ID"] + "_" +
-                    projects_data["Project Name"] + "_" +
-                    projects_data["Personnel"] + "_" +
-                    projects_data["Week"]
-                )
-
-                # Remove Existing Rows with Matching Composite Keys
-                updated_data = projects_data[~projects_data["Composite Key"].isin(new_data["Composite Key"])]
-
-                # Append New Data
-                updated_data = pd.concat([updated_data, new_data], ignore_index=True)
-
-                # Drop Composite Key from Final Dataset
-                updated_data.drop(columns=["Composite Key"], inplace=True)
-
-                # Save to Dropbox
-                upload_to_dropbox(updated_data, PROJECTS_FILE_PATH)
-                st.success("Project submitted successfully!")
+        # Submit Button
+        if st.button("Submit Project"):
+            new_data = pd.DataFrame(allocations)
+            new_data["Composite Key"] = (
+                new_data["Project ID"] + "_" +
+                new_data["Project Name"] + "_" +
+                new_data["Personnel"] + "_" +
+                new_data["Week"]
+            )
+            projects_data["Composite Key"] = (
+                projects_data["Project ID"] + "_" +
+                projects_data["Project Name"] + "_" +
+                projects_data["Personnel"] + "_" +
+                projects_data["Week"]
+            )
+            updated_data = projects_data[~projects_data["Composite Key"].isin(new_data["Composite Key"])]
+            updated_data = pd.concat([updated_data, new_data], ignore_index=True)
+            updated_data.drop(columns=["Composite Key"], inplace=True)
+            upload_to_dropbox(updated_data, PROJECTS_FILE_PATH)
+            st.success("Project submitted successfully!")
 
     elif action == "Update Existing Project":
         st.subheader("Update an Existing Project")
@@ -198,77 +187,18 @@ def main():
             st.warning("No existing projects found.")
             st.stop()
 
-        selected_project = st.selectbox("Select a Project", projects_data["Project Name"].unique())
-        project_details = projects_data[projects_data["Project Name"] == selected_project]
+        selected_section = st.selectbox("Choose a Section", hr_sections)
+        filtered_projects = projects_data[projects_data["Section"] == selected_section]
 
-        updated_rows = []
-        for _, row in project_details.iterrows():
-            updated_budgeted = st.number_input(
-                f"Budgeted Hours ({row['Week']}) for {row['Personnel']}",
-                min_value=0,
-                value=int(row["Budgeted Hrs"]) if not pd.isna(row["Budgeted Hrs"]) else 0,
-                step=1,
-                key=f"update_budgeted_{row['Personnel']}_{row['Week']}"
-            )
-            updated_spent = st.number_input(
-                f"Spent Hours ({row['Week']}) for {row['Personnel']}",
-                min_value=0,
-                value=int(row["Spent Hrs"]) if not pd.isna(row["Spent Hrs"]) else 0,
-                step=1,
-                key=f"update_spent_{row['Personnel']}_{row['Week']}"
-            )
-            remaining_hours = updated_budgeted - updated_spent
-            budgeted_cost = updated_budgeted * row["Cost/Hour"]
-            remaining_cost = remaining_hours * row["Cost/Hour"]
-            updated_rows.append({
-                "Project ID": row["Project ID"],
-                "Project Name": row["Project Name"],
-                "Personnel": row["Personnel"],
-                "Week": row["Week"],
-                "Year": row["Year"],
-                "Month": row["Month"],
-                "Budgeted Hrs": updated_budgeted,
-                "Spent Hrs": updated_spent,
-                "Remaining Hrs": remaining_hours,
-                "Cost/Hour": row["Cost/Hour"],
-                "Budgeted Cost": budgeted_cost,
-                "Remaining Cost": remaining_cost,
-                "Section": row["Section"],
-                "Category": row["Category"]
-            })
+        if filtered_projects.empty:
+            st.warning(f"No projects found for the section: {selected_section}.")
+            st.stop()
 
-        if st.button("Save Updates"):
-            updated_rows = pd.DataFrame(updated_rows)
-
-            # Generate Composite Key for Updated Rows
-            updated_rows["Composite Key"] = (
-                updated_rows["Project ID"] + "_" +
-                updated_rows["Project Name"] + "_" +
-                updated_rows["Personnel"] + "_" +
-                updated_rows["Week"]
-            )
-
-            # Generate Composite Key for Existing Data
-            projects_data["Composite Key"] = (
-                projects_data["Project ID"] + "_" +
-                projects_data["Project Name"] + "_" +
-                projects_data["Personnel"] + "_" +
-                projects_data["Week"]
-            )
-
-            # Remove Existing Rows with Matching Composite Keys
-            remaining_data = projects_data[~projects_data["Composite Key"].isin(updated_rows["Composite Key"])]
-
-            # Append Updated Rows
-            final_data = pd.concat([remaining_data, updated_rows], ignore_index=True)
-
-            # Drop Composite Key from Final Dataset
-            final_data.drop(columns=["Composite Key"], inplace=True)
-
-            # Save to Dropbox
-            upload_to_dropbox(final_data, PROJECTS_FILE_PATH)
-            st.success(f"Updates to '{selected_project}' saved successfully!")
+        selected_project = st.selectbox("Select a Project", filtered_projects["Project Name"].unique())
+        project_details = filtered_projects[filtered_projects["Project Name"] == selected_project]
+        st.dataframe(project_details)
 
 if __name__ == "__main__":
     main()
+
 
