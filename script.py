@@ -7,9 +7,9 @@ from datetime import datetime, timedelta
 from calendar import month_name
 
 # OneDrive API credentials
-CLIENT_ID = "3686715d-f3f7-41d9-ae6b-bd722174bc6b"
-TENANT_ID = "0fa087f9-be01-4a3e-874d-03fd3b33f1b6"
-CLIENT_SECRET = "TaA8Q~J9Nl4EBmioId.7sqJX9bw5hk9UzLUbHaF5"
+CLIENT_ID = "a7a2fb29-66bd-4e16-a8eb-65d6b7f7b3f1"
+TENANT_ID = "a7a2fb29-66bd-4e16-a8eb-65d6b7f7b3f1"
+CLIENT_SECRET = "adn8Q~Jo1shdXUYouk41Z6D9DVokrZdsEfXLTcN6"
 
 AUTHORITY = f"https://login.microsoftonline.com/{TENANT_ID}"
 SCOPE = ["https://graph.microsoft.com/.default"]
@@ -27,7 +27,7 @@ def get_access_token():
 
 # Download a file from OneDrive
 def download_file_from_onedrive(access_token, file_path):
-    url = f"https://engsohagedu-my.sharepoint.com/:x:/g/personal/ahmed2016018_eng_sohag_edu_eg/Ea1YnybszbRGlMDOuKuYfj0BxX-E7PDl0HctF6SB3KNEyw?e=rM0p69"
+    url = f"https://1drv.ms/x/c/dc92d57d369f0c6e/Ee1_xPk8fv9HihGaGmX2fx0BNEiTAKFIPfhsneI7O9425g?e=B8QnXs"
     headers = {"Authorization": f"Bearer {access_token}"}
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
@@ -37,7 +37,7 @@ def download_file_from_onedrive(access_token, file_path):
 
 # Upload a file to OneDrive
 def upload_file_to_onedrive(access_token, file_path, data_frame):
-    url = f"https://engsohagedu-my.sharepoint.com/:f:/g/personal/ahmed2016018_eng_sohag_edu_eg/EqWXv4SllaNOtcCL8Mq7n2AB-dy39lJn6kWhkxFl8a8_rQ?e=IcW4Gu"
+    url = f"https://1drv.ms/f/c/dc92d57d369f0c6e/Eq1SL0aIeV9PjMWWGQH5-OMBu6yVnvzHoyaYu7HQFD8Ujw?e=GIl9gM"
     headers = {
         "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
