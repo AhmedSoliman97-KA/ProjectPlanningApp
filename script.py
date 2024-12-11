@@ -5,7 +5,7 @@ import dropbox
 import os
 
 # Dropbox Access Token and Paths
-ACCESS_TOKEN = "sl.CCYarQAvCYMeboJo_c4-Q1DZUhL1FFMF8JJhElfEZhtP3gtoDcK1dFCI5wzztrkN8RA74X2D2rjk7CjhAuC4GknZ5JVQ7zCNQEJpiqfTef80JD44sTA-17jwwxHfYar_4uiYwTafSQKpgRuhrRCwLaY"
+ACCESS_TOKEN = "sl.CCZ5A6jITRh7Hxzl_mQ2IwVGcgzjmZCVsnPf10S50iSQDBGp-aGyUVWRce98IEcMwoQQnfoY2oh1M0ehD2XsYXyIAvP0pTm-ZXBa7uMQBIPRInyfp81VtCkAg_NTvKxHQ89RWFV5qUHJKM0EUXQdXoQ"
 DROPBOX_FOLDER_PATH = "/Project_Data"
 HR_FILE_NAME = "Human Resources.xlsx"
 LOCAL_HR_FILE = HR_FILE_NAME
@@ -21,10 +21,10 @@ def upload_to_dropbox(file_path, dropbox_path, access_token):
         with open(file_path, "rb") as f:
             dbx.files_upload(f.read(), dropbox_path, mode=dropbox.files.WriteMode("overwrite"))
         st.success(f"File successfully uploaded to Dropbox: {dropbox_path}")
-    except dropbox.exceptions.AuthError:
-        st.error("Authentication error: Check your access token.")
-    except Exception as e:
-        st.error(f"Error uploading to Dropbox: {e}")
+except dropbox.exceptions.AuthError as e:
+    st.error(f"Authentication error: {e}")
+except Exception as e:
+    st.error(f"Error uploading to Dropbox: {e}")
 
 def download_from_dropbox(dropbox_path, local_path, access_token):
     """Download a file from Dropbox."""
