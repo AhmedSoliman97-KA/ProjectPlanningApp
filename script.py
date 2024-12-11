@@ -9,7 +9,7 @@ from calendar import month_name
 # OneDrive API credentials
 CLIENT_ID = "3686715d-f3f7-41d9-ae6b-bd722174bc6b"
 TENANT_ID = "0fa087f9-be01-4a3e-874d-03fd3b33f1b6"
-CLIENT_SECRET = "53de388a-fc0b-4471-99b7-e4222bca80fd"
+CLIENT_SECRET = "TaA8Q~J9Nl4EBmioId.7sqJX9bw5hk9UzLUbHaF5"
 
 AUTHORITY = f"https://login.microsoftonline.com/{TENANT_ID}"
 SCOPE = ["https://graph.microsoft.com/.default"]
