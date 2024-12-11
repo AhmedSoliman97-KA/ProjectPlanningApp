@@ -190,16 +190,12 @@ elif action == "Update Existing Project":
         st.warning("No existing projects found.")
         st.stop()
 
-    # Step 1: Filter by Section
+    # Step 1: Select Section (Sheet Name)
     st.subheader("Filter by Section")
-    selected_section = st.selectbox("Choose a Section", hr_sections)
+    selected_section = st.selectbox("Choose a Section (Sheet Name)", hr_sections)
 
-    # Normalize sections for comparison
-    selected_section_normalized = selected_section.strip().lower()
-    projects_data["Section Normalized"] = projects_data["Section"].str.strip().str.lower()
-
-    # Filter projects
-    filtered_projects = projects_data[projects_data["Section Normalized"] == selected_section_normalized]
+    # Filter projects based on the selected sheet name
+    filtered_projects = projects_data[projects_data["Section"] == selected_section]
     if filtered_projects.empty:
         st.warning(f"No projects found for the selected section: {selected_section}")
         st.stop()
@@ -212,10 +208,13 @@ elif action == "Update Existing Project":
     # Step 3: Summary of Current Allocations
     st.subheader(f"Summary of Current Allocations for '{selected_project}'")
     st.dataframe(project_details)
+
+    # Metrics for Current Allocations
     current_budgeted_hours = project_details["Budgeted Hrs"].sum()
     current_spent_hours = project_details["Spent Hrs"].sum()
     current_budgeted_cost = project_details["Budgeted Cost"].sum()
     current_remaining_cost = project_details["Remaining Cost"].sum()
+
     st.metric("Current Budgeted Hours", current_budgeted_hours)
     st.metric("Current Spent Hours", current_spent_hours)
     st.metric("Current Budgeted Cost", f"${current_budgeted_cost:,.2f}")
@@ -226,6 +225,7 @@ elif action == "Update Existing Project":
     engineer_details = project_details[project_details["Personnel"] == selected_engineer]
 
     # Step 5: Update Allocations
+    st.subheader(f"Update Allocations for {selected_engineer}")
     updated_rows = []
     for _, row in engineer_details.iterrows():
         updated_budgeted = st.number_input(
@@ -263,20 +263,24 @@ elif action == "Update Existing Project":
             "Category": row["Category"]
         })
 
+    # Step 6: Display Summary of Updated Allocations
     if updated_rows:
         st.subheader("Summary of Updated Allocations")
         updated_df = pd.DataFrame(updated_rows)
         st.dataframe(updated_df)
+
+        # Metrics for Updated Allocations
         updated_budgeted_hours = updated_df["Budgeted Hrs"].sum()
         updated_spent_hours = updated_df["Spent Hrs"].sum()
         updated_budgeted_cost = updated_df["Budgeted Cost"].sum()
         updated_remaining_cost = updated_df["Remaining Cost"].sum()
+
         st.metric("Updated Budgeted Hours", updated_budgeted_hours)
         st.metric("Updated Spent Hours", updated_spent_hours)
         st.metric("Updated Budgeted Cost", f"${updated_budgeted_cost:,.2f}")
         st.metric("Updated Remaining Cost", f"${updated_remaining_cost:,.2f}")
 
-    # Save Updates
+    # Step 7: Save Updates
     if st.button("Save Updates"):
         updated_rows_df = pd.DataFrame(updated_rows)
         updated_rows_df["Composite Key"] = (
@@ -296,6 +300,7 @@ elif action == "Update Existing Project":
         final_data.drop(columns=["Composite Key"], inplace=True)
         upload_to_dropbox(final_data, PROJECTS_FILE_PATH)
         st.success(f"Updates saved successfully!")
+
 
 
     # Download Button
