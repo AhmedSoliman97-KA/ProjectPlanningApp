@@ -52,17 +52,13 @@ def ensure_file_exists(file_path, dropbox_path, columns=None):
                 print(f"File created and uploaded: {file_path}")
 
 # Clear Session State Function
-def reset_session_state():
-    """Clear session state to remove cached data."""
+def clear_all_allocations():
+    """Clear all allocations from session state."""
     if "engineer_allocation" in st.session_state:
         del st.session_state["engineer_allocation"]
 
 # Main Application
 def main():
-    # Clear session state if the file is deleted
-    if not os.path.exists(LOCAL_PROJECTS_FILE):
-        reset_session_state()
-
     st.image("image.png", use_container_width=True)
     st.title("Water & Environment Project Planning")
 
@@ -139,15 +135,6 @@ def main():
             summary_data = pd.DataFrame(st.session_state.engineer_allocation.values())
             st.dataframe(summary_data)
 
-            # Delete an allocation
-            st.subheader("Delete Allocation")
-            to_delete = st.text_input("Enter Row Index to Delete")
-            if st.button("Delete Row"):
-                if to_delete.isdigit() and int(to_delete) in summary_data.index:
-                    summary_data.drop(index=int(to_delete), inplace=True)
-                    st.session_state.engineer_allocation = summary_data.to_dict(orient="index")
-                    st.success(f"Deleted row {to_delete} successfully!")
-
             # Submit Project Button
             if st.button("Submit Project"):
                 try:
@@ -164,6 +151,10 @@ def main():
                     # Upload to Dropbox
                     upload_to_dropbox(LOCAL_PROJECTS_FILE, DROPBOX_PROJECTS_PATH, ACCESS_TOKEN)
                     st.success(f"Project '{project_name}' submitted successfully!")
+
+                    # Clear session state after submission
+                    clear_all_allocations()
+
                 except Exception as e:
                     st.error(f"Error submitting project: {e}")
 
