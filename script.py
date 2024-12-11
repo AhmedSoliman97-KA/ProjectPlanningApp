@@ -22,6 +22,17 @@ def download_from_dropbox(file_name, access_token):
         f.write(res.content)
     print(f"File {file_name} downloaded from Dropbox.")
 
+# Load Engineer Data from Human Resources File
+def load_engineers(file_path):
+    """Loads engineer names and sections from Human Resources.xlsx."""
+    try:
+        excel_file = pd.ExcelFile(file_path)
+        sections = excel_file.sheet_names  # Get all sheet names (sections)
+        return {section: excel_file.parse(sheet_name=section)["Name"].dropna().tolist() for section in sections}
+    except Exception as e:
+        st.error(f"Error loading Human Resources file: {e}")
+        return {}
+
 # Save Project Data Function
 def save_project_data(dataframe):
     """Save the project data locally and upload to Dropbox."""
@@ -39,14 +50,33 @@ def main():
     st.image("image.png", use_container_width=True)
     st.title("Water & Environment Project Planning")
 
+    # Load Human Resources Data
+    human_resources_path = "Human Resources.xlsx"
+    engineers_by_section = load_engineers(human_resources_path)
+
+    if not engineers_by_section:
+        st.error("Could not load engineer data. Ensure Human Resources.xlsx is in the directory.")
+        return
+
+    # Section Selection
+    st.subheader("Step 1: Select Section")
+    selected_section = st.selectbox("Choose a section", list(engineers_by_section.keys()))
+
+    # Filter Engineers
+    engineers = engineers_by_section.get(selected_section, [])
+
+    if not engineers:
+        st.warning("No engineers found in the selected section.")
+        return
+
     # Project Details
-    st.subheader("Step 1: Enter Project Details")
+    st.subheader("Step 2: Enter Project Details")
     project_id = st.text_input("Project ID", help="Enter the unique ID for the project.")
     project_name = st.text_input("Project Name", help="Enter the name of the project.")
 
     # Engineer and Hours Input
-    st.subheader("Step 2: Assign Engineers and Hours")
-    engineers = st.multiselect("Select Engineers", ["Alice", "Bob", "Charlie"])
+    st.subheader("Step 3: Assign Engineers and Hours")
+    selected_engineers = st.multiselect("Select Engineers", engineers)
     week = st.selectbox("Select Week", [f"Week {i}" for i in range(1, 53)])
     hours = st.number_input("Hours", min_value=0, step=1, help="Enter hours for the selected week.")
 
@@ -56,14 +86,15 @@ def main():
 
     # Add Data Button
     if st.button("Add Hours"):
-        for engineer in engineers:
+        for engineer in selected_engineers:
             st.session_state.project_data.append({
                 "Project ID": project_id,
                 "Project Name": project_name,
                 "Engineer": engineer,
                 "Week": week,
                 "Hours": hours,
-                "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "Section": selected_section,
             })
         st.success("Hours added successfully!")
 
