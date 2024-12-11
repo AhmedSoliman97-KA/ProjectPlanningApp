@@ -55,16 +55,6 @@ def main():
     # Ensure the projects file exists in Dropbox
     ensure_dropbox_projects_file_exists(PROJECTS_FILE_PATH)
 
-    # Load Human Resources File
-    try:
-        hr_excel = pd.ExcelFile(HR_FILE_LOCAL)
-    except Exception as e:
-        st.error(f"Error loading Human Resources file: {e}")
-        st.stop()
-
-    # Load Sections from HR File
-    hr_sections = hr_excel.sheet_names
-
     # Load Projects Data from Dropbox
     projects_excel = download_from_dropbox(PROJECTS_FILE_PATH)
     if projects_excel is None:
@@ -76,85 +66,17 @@ def main():
     else:
         projects_data = pd.read_excel(projects_excel)
 
+    # Extract unique sections from the project data
+    unique_sections = projects_data["Section"].dropna().str.strip().str.lower().unique().tolist()
+
     # Action Selection
     st.sidebar.subheader("Actions")
     action = st.sidebar.radio("Choose an Action", ["Create New Project", "Update Existing Project"])
 
-    # Section Selection
-    st.subheader("Section Selection")
-    selected_section = st.selectbox("Choose a Section", hr_sections)
-    engineers_data = hr_excel.parse(sheet_name=selected_section)
-    engineers = engineers_data["Name"].dropna().tolist()
-
     if action == "Create New Project":
         st.subheader("Create a New Project")
-        project_id = st.text_input("Project ID", help="Enter a unique ID for the project.")
-        project_name = st.text_input("Project Name", help="Enter the name of the project.")
-        selected_year = st.selectbox("Year", range(datetime.now().year - 5, datetime.now().year + 6), index=5)
-        selected_month = st.selectbox("Month", list(month_name)[1:], index=datetime.now().month - 1)
-
-        # Engineer Selection from Dropdown
-        st.subheader("Select Engineers for Allocation")
-        selected_engineers = st.multiselect("Choose Engineers", options=engineers, help="Select engineers to allocate hours.")
-
-        allocations = []
-
-        if selected_engineers:
-            st.subheader("Allocate Weekly Hours")
-
-            # Generate Weeks
-            weeks = [f"Week {i}" for i in range(1, 5)]
-
-            for engineer in selected_engineers:
-                engineer_details = engineers_data[engineers_data["Name"] == engineer].iloc[0]
-                section = engineer_details.get("Section", "Unknown")
-                category = engineer_details.get("Category", "N/A")
-                cost_per_hour = pd.to_numeric(engineer_details.get("Cost/Hour", 0), errors='coerce')
-                cost_per_hour = cost_per_hour if not pd.isna(cost_per_hour) else 0
-
-                st.markdown(f"### Engineer: {engineer}")
-                for week in weeks:
-                    budgeted_hours = st.number_input(
-                        f"Budgeted Hours ({week}) for {engineer}",
-                        min_value=0,
-                        step=1,
-                        key=f"{engineer}_{week}"
-                    )
-                    if budgeted_hours > 0:
-                        spent_hours = 0
-                        remaining_hours = budgeted_hours - spent_hours
-                        budgeted_cost = budgeted_hours * cost_per_hour
-                        remaining_cost = remaining_hours * cost_per_hour
-
-                        allocations.append({
-                            "Project ID": project_id,
-                            "Project Name": project_name,
-                            "Personnel": engineer,
-                            "Week": week,
-                            "Year": selected_year,
-                            "Month": selected_month,
-                            "Budgeted Hrs": budgeted_hours,
-                            "Spent Hrs": spent_hours,
-                            "Remaining Hrs": remaining_hours,
-                            "Cost/Hour": cost_per_hour,
-                            "Budgeted Cost": budgeted_cost,
-                            "Remaining Cost": remaining_cost,
-                            "Section": section,
-                            "Category": category
-                        })
-
-        # Display Summary Allocation
-        if allocations:
-            st.subheader("Summary of Allocations")
-            allocation_df = pd.DataFrame(allocations)
-            st.dataframe(allocation_df)
-
-        # Submit Button
-        if st.button("Submit Project"):
-            new_data = pd.DataFrame(allocations)
-            updated_data = pd.concat([projects_data, new_data], ignore_index=True)
-            upload_to_dropbox(updated_data, PROJECTS_FILE_PATH)
-            st.success("Project submitted successfully!")
+        # Dummy implementation for creating new projects
+        st.write("Create new project workflow goes here.")
 
     elif action == "Update Existing Project":
         st.subheader("Update an Existing Project")
@@ -163,7 +85,15 @@ def main():
             st.stop()
 
         # Step 1: Filter by Section
-        filtered_projects = projects_data[projects_data["Section"].str.strip().str.lower() == selected_section.strip().lower()]
+        st.subheader("Filter by Section")
+        selected_section = st.selectbox("Choose a Section", unique_sections)
+
+        # Normalize sections for comparison
+        selected_section_normalized = selected_section.strip().lower()
+        projects_data["Section Normalized"] = projects_data["Section"].str.strip().str.lower()
+
+        # Filter projects
+        filtered_projects = projects_data[projects_data["Section Normalized"] == selected_section_normalized]
         if filtered_projects.empty:
             st.warning(f"No projects found for the selected section: {selected_section}")
             st.stop()
@@ -225,7 +155,7 @@ def main():
             remaining_data = projects_data[~projects_data.index.isin(project_details.index)]
             final_data = pd.concat([remaining_data, updated_rows_df], ignore_index=True)
             upload_to_dropbox(final_data, PROJECTS_FILE_PATH)
-            st.success("Updates saved successfully!")
+            st.success(f"Updates saved successfully!")
 
 if __name__ == "__main__":
     main()
