@@ -181,24 +181,6 @@ def main():
             upload_to_dropbox(updated_data, PROJECTS_FILE_PATH)
             st.success("Project submitted successfully!")
 
-    elif action == "Update Existing Project":
-        st.subheader("Update an Existing Project")
-        if projects_data.empty:
-            st.warning("No existing projects found.")
-            st.stop()
-
-        selected_section = st.selectbox("Choose a Section", hr_sections)
-        filtered_projects = projects_data[projects_data["Section"] == selected_section]
-
-        if filtered_projects.empty:
-            st.warning(f"No projects found for the section: {selected_section}.")
-            st.stop()
-
-        selected_project = st.selectbox("Select a Project", filtered_projects["Project Name"].unique())
-        project_details = filtered_projects[filtered_projects["Project Name"] == selected_project]
-        st.dataframe(project_details)
-
 if __name__ == "__main__":
     main()
-
 
