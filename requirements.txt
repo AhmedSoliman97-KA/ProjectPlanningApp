@@ -1,5 +1,4 @@
-streamlit
-msal
 pandas
-requests
 openpyxl
+streamlit
+pydrive
