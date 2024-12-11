@@ -156,15 +156,6 @@ def main():
             summary_data = pd.DataFrame(st.session_state.engineer_allocation.values())
             st.dataframe(summary_data)
 
-            # Delete Allocation
-            st.subheader("Manage Allocations")
-            to_delete = st.text_input("Enter Row Index to Delete")
-            if st.button("Delete Row"):
-                if to_delete.isdigit() and int(to_delete) in summary_data.index:
-                    summary_data.drop(index=int(to_delete), inplace=True)
-                    st.session_state.engineer_allocation = summary_data.to_dict(orient="index")
-                    st.success(f"Deleted row {to_delete} successfully!")
-
             # Submit Project
             if st.button("Submit Project"):
                 try:
@@ -176,6 +167,7 @@ def main():
 
                     # Save and reset
                     final_data = pd.concat([existing_data, summary_data], ignore_index=True)
+                    final_data = add_calculated_fields(final_data, hr_data)
                     final_data.to_excel(LOCAL_PROJECTS_FILE, index=False)
                     upload_to_dropbox(LOCAL_PROJECTS_FILE, DROPBOX_PROJECTS_PATH, ACCESS_TOKEN)
                     clear_all_session_data()
