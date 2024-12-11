@@ -105,18 +105,19 @@ def main():
             st.markdown(f"**Engineer: {engineer}**")
             for week in weeks:
                 budgeted_hours = st.number_input(
-                    f"Budgeted Hours ({week})", min_value=0, step=1, key=f"{engineer}_{week}_budgeted"
+                    f"Budgeted Hours ({week}) for {engineer}", min_value=0, step=1, key=f"{engineer}_{week}_budgeted"
                 )
-                allocations.append({
-                    "Project ID": project_id,
-                    "Project Name": project_name,
-                    "Personnel": engineer,
-                    "Week": week,
-                    "Year": selected_year,
-                    "Month": selected_month,
-                    "Budgeted Hrs": budgeted_hours,
-                    "Spent Hrs": None
-                })
+                if budgeted_hours > 0:
+                    allocations.append({
+                        "Project ID": project_id,
+                        "Project Name": project_name,
+                        "Personnel": engineer,
+                        "Week": week,
+                        "Year": selected_year,
+                        "Month": selected_month,
+                        "Budgeted Hrs": budgeted_hours,
+                        "Spent Hrs": None
+                    })
 
         # Submit Project
         if st.button("Submit Project"):
@@ -146,10 +147,18 @@ def main():
             st.dataframe(selected_project)
 
             # Update data
-            personnel = st.text_input("Personnel", value=selected_project["Personnel"].iloc[0])
-            week = st.selectbox("Week", [f"Week {i}" for i in range(1, 5)])
-            budgeted_hours = st.number_input("Updated Budgeted Hours", min_value=0, value=selected_project["Budgeted Hrs"].iloc[0])
-            spent_hours = st.number_input("Updated Spent Hours", min_value=0, value=selected_project["Spent Hrs"].iloc[0])
+            personnel = st.selectbox("Select Personnel", selected_project["Personnel"].unique())
+            week = st.selectbox("Week", selected_project["Week"].unique())
+            budgeted_hours = st.number_input(
+                "Updated Budgeted Hours", min_value=0, value=selected_project[
+                    (selected_project["Personnel"] == personnel) & (selected_project["Week"] == week)
+                ]["Budgeted Hrs"].iloc[0]
+            )
+            spent_hours = st.number_input(
+                "Updated Spent Hours", min_value=0, value=selected_project[
+                    (selected_project["Personnel"] == personnel) & (selected_project["Week"] == week)
+                ]["Spent Hrs"].iloc[0]
+            )
 
             if st.button("Update Project"):
                 project_data.loc[
