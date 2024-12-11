@@ -21,10 +21,10 @@ def upload_to_dropbox(file_path, dropbox_path, access_token):
         with open(file_path, "rb") as f:
             dbx.files_upload(f.read(), dropbox_path, mode=dropbox.files.WriteMode("overwrite"))
         st.success(f"File successfully uploaded to Dropbox: {dropbox_path}")
-except dropbox.exceptions.AuthError as e:
-    st.error(f"Authentication error: {e}")
-except Exception as e:
-    st.error(f"Error uploading to Dropbox: {e}")
+    except dropbox.exceptions.AuthError as e:
+        st.error(f"Authentication error: {e}")
+    except Exception as e:
+        st.error(f"Error uploading to Dropbox: {e}")
 
 def download_from_dropbox(dropbox_path, local_path, access_token):
     """Download a file from Dropbox."""
@@ -34,8 +34,8 @@ def download_from_dropbox(dropbox_path, local_path, access_token):
         with open(local_path, "wb") as f:
             f.write(res.content)
         print(f"Downloaded from Dropbox: {dropbox_path}")
-    except dropbox.exceptions.ApiError:
-        print(f"Dropbox file not found: {dropbox_path}")
+    except dropbox.exceptions.ApiError as e:
+        print(f"Dropbox file not found: {e}")
     except Exception as e:
         print(f"Error downloading file: {e}")
 
