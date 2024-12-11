@@ -57,12 +57,6 @@ def load_engineers(file_path, selected_section):
         st.error(f"Error loading Human Resources data: {e}")
         return [], None
 
-# Clear Session State
-def clear_session_state():
-    """Clear all session data."""
-    for key in list(st.session_state.keys()):
-        del st.session_state[key]
-
 # Main Application
 def main():
     # Ensure Human Resources and project files exist
@@ -108,65 +102,76 @@ def main():
         st.subheader("Assign Engineers and Weekly Hours")
         selected_engineers = st.multiselect("Select Engineers", engineers)
 
-        if "engineer_allocation" not in st.session_state:
-            st.session_state.engineer_allocation = {}
-
-        # Engineer-wise allocation
+        allocations = []
         for engineer in selected_engineers:
             st.markdown(f"**Engineer: {engineer}**")
             for week in weeks:
                 budgeted_hours = st.number_input(
                     f"Budgeted Hours ({week})", min_value=0, step=1, key=f"{engineer}_{week}_budgeted"
                 )
-                if st.button("Add Hours", key=f"add_{engineer}_{week}"):
-                    unique_key = f"{project_id}_{project_name}_{engineer}_{week}"
-                    st.session_state.engineer_allocation[unique_key] = {
-                        "Project ID": project_id,
-                        "Project Name": project_name,
-                        "Personnel": engineer,
-                        "Week": week,
-                        "Year": selected_year,
-                        "Month": selected_month,
-                        "Budgeted Hrs": budgeted_hours,
-                        "Spent Hrs": None,  # Not applicable in Create New Project
-                    }
-                    st.success(f"Added hours for {engineer} in {week}.")
+                allocations.append({
+                    "Project ID": project_id,
+                    "Project Name": project_name,
+                    "Personnel": engineer,
+                    "Week": week,
+                    "Year": selected_year,
+                    "Month": selected_month,
+                    "Budgeted Hrs": budgeted_hours,
+                    "Spent Hrs": None
+                })
 
-        if st.session_state.engineer_allocation:
-            st.subheader("Allocation Summary")
-            summary_data = pd.DataFrame(st.session_state.engineer_allocation.values())
-            st.dataframe(summary_data)
+        # Submit Project
+        if st.button("Submit Project"):
+            try:
+                # Load existing data
+                existing_data = pd.read_excel(LOCAL_PROJECTS_FILE)
 
-            if st.button("Submit Project"):
-                try:
-                    # Load existing data
-                    try:
-                        existing_data = pd.read_excel(LOCAL_PROJECTS_FILE)
-                    except FileNotFoundError:
-                        existing_data = pd.DataFrame(columns=summary_data.columns)
+                # Add new data
+                final_data = pd.concat([existing_data, pd.DataFrame(allocations)], ignore_index=True)
 
-                    # Save data
-                    final_data = pd.concat([existing_data, summary_data], ignore_index=True)
-                    final_data.to_excel(LOCAL_PROJECTS_FILE, index=False)
-                    upload_to_dropbox(LOCAL_PROJECTS_FILE, DROPBOX_PROJECTS_PATH, ACCESS_TOKEN)
-                    clear_session_state()
-                    st.success("Project submitted successfully!")
-                except Exception as e:
-                    st.error(f"Error submitting project: {e}")
+                # Save back to Excel
+                final_data.to_excel(LOCAL_PROJECTS_FILE, index=False)
+                upload_to_dropbox(LOCAL_PROJECTS_FILE, DROPBOX_PROJECTS_PATH, ACCESS_TOKEN)
+                st.success("Project submitted successfully!")
+            except Exception as e:
+                st.error(f"Error submitting project: {e}")
 
     elif action == "Update Existing Project":
         st.subheader("Update Existing Project")
         try:
             project_data = pd.read_excel(LOCAL_PROJECTS_FILE)
             st.dataframe(project_data)
+
+            # Select project to update
+            project_id = st.selectbox("Select Project ID to Update", project_data["Project ID"].unique())
+            selected_project = project_data[project_data["Project ID"] == project_id]
+            st.dataframe(selected_project)
+
+            # Update data
+            personnel = st.text_input("Personnel", value=selected_project["Personnel"].iloc[0])
+            week = st.selectbox("Week", [f"Week {i}" for i in range(1, 5)])
+            budgeted_hours = st.number_input("Updated Budgeted Hours", min_value=0, value=selected_project["Budgeted Hrs"].iloc[0])
+            spent_hours = st.number_input("Updated Spent Hours", min_value=0, value=selected_project["Spent Hrs"].iloc[0])
+
+            if st.button("Update Project"):
+                project_data.loc[
+                    (project_data["Project ID"] == project_id) & (project_data["Personnel"] == personnel) & (project_data["Week"] == week),
+                    ["Budgeted Hrs", "Spent Hrs"]
+                ] = [budgeted_hours, spent_hours]
+
+                # Save back to Excel
+                project_data.to_excel(LOCAL_PROJECTS_FILE, index=False)
+                upload_to_dropbox(LOCAL_PROJECTS_FILE, DROPBOX_PROJECTS_PATH, ACCESS_TOKEN)
+                st.success("Project updated successfully!")
         except FileNotFoundError:
             st.warning("No existing project data found.")
 
+    # Download Latest File
     st.subheader("Download Latest File")
     if st.button("Download File"):
         with open(LOCAL_PROJECTS_FILE, "rb") as file:
             st.download_button(
-                label="Download Project File",
+                label="Download File",
                 data=file,
                 file_name="projects_data_weekly.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
