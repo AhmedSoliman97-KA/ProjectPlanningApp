@@ -25,7 +25,7 @@ def get_access_token():
 
 # Download a file from OneDrive
 def download_file_from_onedrive(access_token, file_path):
-    url = f"https://graph.microsoft.com/v1.0/me/drive/root:/{file_path}:/content"
+    url = f"https://1drv.ms/x/c/dc92d57d369f0c6e/Ee1_xPk8fv9HihGaGmX2fx0BNEiTAKFIPfhsneI7O9425g?e=Vpr9GD"
     headers = {"Authorization": f"Bearer {access_token}"}
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
@@ -35,7 +35,7 @@ def download_file_from_onedrive(access_token, file_path):
 
 # Upload a file to OneDrive
 def upload_file_to_onedrive(access_token, file_path, data_frame):
-    url = f"https://graph.microsoft.com/v1.0/me/drive/root:/{file_path}:/content"
+    url = f"https://1drv.ms/f/c/dc92d57d369f0c6e/Eq1SL0aIeV9PjMWWGQH5-OMBu6yVnvzHoyaYu7HQFD8Ujw?e=Zt6da7"
     headers = {
         "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
