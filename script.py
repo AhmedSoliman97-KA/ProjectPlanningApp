@@ -55,6 +55,13 @@ def main():
     # Ensure the projects file exists in Dropbox
     ensure_dropbox_projects_file_exists(PROJECTS_FILE_PATH)
 
+    # Load Human Resources File
+    try:
+        hr_excel = pd.ExcelFile(HR_FILE_LOCAL)
+    except Exception as e:
+        st.error(f"Error loading Human Resources file: {e}")
+        st.stop()
+
     # Load Projects Data from Dropbox
     projects_excel = download_from_dropbox(PROJECTS_FILE_PATH)
     if projects_excel is None:
@@ -75,7 +82,7 @@ def main():
 
     if action == "Create New Project":
         st.subheader("Create a New Project")
-        # Dummy implementation for creating new projects
+        # Placeholder for creating new projects
         st.write("Create new project workflow goes here.")
 
     elif action == "Update Existing Project":
