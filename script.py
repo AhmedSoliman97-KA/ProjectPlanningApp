@@ -102,7 +102,7 @@ def main():
         project_id = st.text_input("Project ID", help="Enter a unique ID for the project.")
         project_name = st.text_input("Project Name")
         selected_year = st.selectbox("Year", range(datetime.now().year - 5, datetime.now().year + 6))
-        selected_month = st.selectbox("Month", range(1, 13))
+        selected_month = st.selectbox("Month", [datetime(1900, m, 1).strftime("%B") for m in range(1, 13)])
         weeks = [f"Week {i}" for i in range(1, 5)]
 
         st.subheader("Step 4: Assign Engineers and Weekly Hours")
@@ -118,11 +118,8 @@ def main():
                 budgeted_hours = st.number_input(
                     f"Budgeted Hours ({week})", min_value=0, step=1, key=f"{engineer}_{week}_budgeted"
                 )
-                spent_hours = st.number_input(
-                    f"Spent Hours ({week})", min_value=0, step=1, key=f"{engineer}_{week}_spent"
-                )
                 if st.button("Add Hours", key=f"add_{engineer}_{week}"):
-                    unique_key = f"{engineer}_{week}"
+                    unique_key = f"{project_id}_{project_name}_{engineer}_{week}"
                     st.session_state.engineer_allocation[unique_key] = {
                         "Project ID": project_id,
                         "Project Name": project_name,
@@ -131,7 +128,7 @@ def main():
                         "Year": selected_year,
                         "Month": selected_month,
                         "Budgeted Hrs": budgeted_hours,
-                        "Spent Hrs": spent_hours,
+                        "Spent Hrs": None,  # Excluded in Create New Project
                     }
                     st.success(f"Added hours for {engineer} in {week}.")
 
@@ -149,6 +146,18 @@ def main():
                     except FileNotFoundError:
                         existing_data = pd.DataFrame(columns=summary_data.columns)
 
+                    # Remove duplicate entries based on unique keys
+                    unique_keys = [
+                        f"{row['Project ID']}_{row['Project Name']}_{row['Personnel']}_{row['Week']}"
+                        for _, row in summary_data.iterrows()
+                    ]
+                    existing_data = existing_data[
+                        ~existing_data.apply(
+                            lambda row: f"{row['Project ID']}_{row['Project Name']}_{row['Personnel']}_{row['Week']}"
+                            in unique_keys, axis=1
+                        )
+                    ]
+
                     # Append and save
                     final_data = pd.concat([existing_data, summary_data], ignore_index=True)
                     final_data.to_excel(LOCAL_PROJECTS_FILE, index=False)
@@ -160,40 +169,9 @@ def main():
                     st.error(f"Error submitting project: {e}")
 
     elif action == "Update Existing Project":
-        st.subheader("Step 3: Update an Existing Project")
-        try:
-            projects_data = pd.read_excel(LOCAL_PROJECTS_FILE)
-            project_ids = projects_data["Project ID"].unique().tolist()
-            selected_project_id = st.selectbox("Select Project ID", project_ids)
-
-            if selected_project_id:
-                project_data = projects_data[projects_data["Project ID"] == selected_project_id]
-                st.dataframe(project_data)
-
-                updated_data = []
-                for _, row in project_data.iterrows():
-                    st.markdown(f"**Personnel: {row['Personnel']} | Week: {row['Week']}**")
-                    budgeted_hours = st.number_input(
-                        f"Budgeted Hours", min_value=0, value=int(row["Budgeted Hrs"]), step=1, key=f"{row['Week']}_budgeted"
-                    )
-                    spent_hours = st.number_input(
-                        f"Spent Hours", min_value=0, value=int(row["Spent Hrs"]), step=1, key=f"{row['Week']}_spent"
-                    )
-                    updated_data.append({
-                        **row,
-                        "Budgeted Hrs": budgeted_hours,
-                        "Spent Hrs": spent_hours,
-                    })
-
-                if st.button("Save Updates"):
-                    remaining_data = projects_data[projects_data["Project ID"] != selected_project_id]
-                    final_data = pd.concat([remaining_data, pd.DataFrame(updated_data)], ignore_index=True)
-                    final_data.to_excel(LOCAL_PROJECTS_FILE, index=False)
-                    upload_to_dropbox(LOCAL_PROJECTS_FILE, DROPBOX_PROJECTS_PATH, ACCESS_TOKEN)
-                    st.success(f"Project '{selected_project_id}' updated successfully!")
-
-        except Exception as e:
-            st.error(f"Error loading projects: {e}")
+        # Implement Update Logic (includes both budgeted and spent hours)
+        st.subheader("Update Existing Project")
+        pass  # Add logic for updating projects here.
 
 if __name__ == "__main__":
     main()
