@@ -14,21 +14,17 @@ LOCAL_PROJECTS_FILE = "projects_data_weekly.xlsx"
 DROPBOX_PROJECTS_PATH = f"{DROPBOX_FOLDER_PATH}/projects_data_weekly.xlsx"
 
 # Dropbox Functions
-if os.path.exists(LOCAL_PROJECTS_FILE):
-    print("File exists locally and ready to upload.")
-else:
-    print("Local file not found. Cannot upload.")
 def upload_to_dropbox(file_path, dropbox_path, access_token):
     """Upload a file to Dropbox."""
     try:
         dbx = dropbox.Dropbox(access_token)
         with open(file_path, "rb") as f:
             dbx.files_upload(f.read(), dropbox_path, mode=dropbox.files.WriteMode("overwrite"))
-        print(f"Uploaded to Dropbox: {dropbox_path}")
+        st.success(f"File successfully uploaded to Dropbox: {dropbox_path}")
     except dropbox.exceptions.AuthError:
-        print("Authentication error: Check your access token.")
+        st.error("Authentication error: Check your access token.")
     except Exception as e:
-        print(f"Error uploading to Dropbox: {e}")
+        st.error(f"Error uploading to Dropbox: {e}")
 
 def download_from_dropbox(dropbox_path, local_path, access_token):
     """Download a file from Dropbox."""
