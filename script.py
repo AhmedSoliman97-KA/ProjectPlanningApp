@@ -5,19 +5,22 @@ import dropbox
 
 # Dropbox Settings
 ACCESS_TOKEN = "sl.u.AFZfAbFllA29neJgjpRx63DedZKVU5jYc9_ze4-Y4HhSdTfnCW3s6NqQVy-8JwH5sa0rS1SKhdJUeFdRk6vVBPF3brz0sjQmPX7W-H_7lSoZj2224z8wzUWgYmHA0tIS6V9eRd34rj-bXqUSQ4zzrFflowgqXxFbt12e6bxsdkzSVSvXO8f7G1MRBQC3lln3XFbYYMRpJwnjO1nNs3HrPuo2tToG7VuQps4yPrilW1XaucBx5g2kDM83VmW0VSfIb24RO2XxbrJB_x11XXigsy1ES0hV0J7vVW6tD1mrg13wmwx92imzWePsiskx0lMKQ5bHGnI3_XfqR1YW18rt8nHgg983LJQ24Iu_iMiWiX6gcyMMaB5iv6DvFjF2AGSvuB-oe-yzXWq35ATuvhGxL1iBTNyKZGAcY7fgNBB8Km__d61aY-wttgWNG35Dp0VdLfSdDiZT-r_3M1MA9uTK7yYhLKmJg-MvPsVLp1Vh_AF7HRCiYJDulcTCzTNyvVMDlEFac5NidFL4shCOLXP3oMKT4_z0HcdxSnwQ0k9-uFSg1BV8XQaP7u0UiE_16fLtvKZaa9H2YFO6FiN14rYt6czeTb1Jqnv9UqJ-P1RLSEma2BZ-kL04ntXBdwsOPReHxAKD2TTpbDQZk8nXXwyeC-l1Ho2FMaR2lx7lp8QN1PNCTjSFS794uPUnGH_OuDwkSKI6uP7KfSgQFgl-BNXhVkdjHuzyomLnrKuKu-S53UNTf74p-FOYO_RT7cC_rtI3g3TD8MlIEpNfCyT_IQaXI3YFparHkpK27XjVlO1sJ7Bf6Hxg0gGnLMzdJl2HBXrAdr684QFpYscWagvTBX-UoofSHnotdhIMc65fHaSH3mYlerKwYx_IafYnWvhN5L4lGnMhlK4Kp6tj7_6fPqEJN9PtsPO1Ob3YFdN4IMovTGB-Z4kcDq3EsQZMBIITaFbIhWgEjnSVGruXPB0IM0m1nZxTGxbbNB8F02Dy2P3uwZqNRXL4mwSlg5H-jUtGQw4opTeAKRp2lycSNHlp8lLVDrekXHmvOyg7VQhgAVEfm6n51NX3KlUjSkKva3N3QySFiwUhMpMBUX8eRyGuMvSpcfIMKvmJc0vAhIagiG50u9LjPixrPIQp0KY8-z6wOikBRzA6CjefibaS5Cw4BA1yvGrEeSQPvGg6ADOv1HgDeoHuMk78ZT1daAyvfCCHGWiBHQ1kmUw6V0egKDiO-92FEOZwxxwOJKlyhxJ7T5NrnFVKcT5Tu9GBW-CeaHN-MN4EhJFU7LM5ej6mNrBYCVKa1L_s02g6OjfaRb8EZFDgcBIOvij85rYoZNDr-x4jlPbCDXYuYDSYLjstTUa7WQidObkHh-JGnHfoCyJPuJusk8rvsqUwzKVSHM-VTrZgUjUE39u9BSi98HWQWaRMhvsksaR1z_rJ2WJWDMo7EZNHf3QXXg"
-HR_FILE_PATH = "/Project_Data/Human Resources.xlsx"
 PROJECTS_FILE_PATH = "/Project_Data/projects_data_weekly.xlsx"
+HR_FILE_LOCAL = "Human Resources.xlsx"
 
 # Dropbox Functions
-def download_from_dropbox(dropbox_path):
+def download_from_dropbox(file_path):
     """Download a file from Dropbox."""
     try:
         dbx = dropbox.Dropbox(ACCESS_TOKEN)
-        metadata, res = dbx.files_download(dropbox_path)
+        metadata, res = dbx.files_download(file_path)
         return pd.ExcelFile(res.content)
     except dropbox.exceptions.ApiError as e:
-        st.error(f"Error downloading file: {e}")
-        return None
+        if e.error.is_path() and e.error.get_path().is_not_found():
+            return None
+        else:
+            st.error(f"Error downloading file: {e}")
+            return None
 
 def upload_to_dropbox(df, dropbox_path):
     """Upload a DataFrame to Dropbox as an Excel file."""
@@ -30,6 +33,16 @@ def upload_to_dropbox(df, dropbox_path):
         st.success(f"Data successfully uploaded to {dropbox_path}.")
     except Exception as e:
         st.error(f"Error uploading data: {e}")
+
+def ensure_dropbox_projects_file_exists(file_path):
+    """Ensure the projects file exists in Dropbox, create if not."""
+    existing_file = download_from_dropbox(file_path)
+    if existing_file is None:
+        st.warning(f"{file_path} not found in Dropbox. Creating a new file...")
+        empty_df = pd.DataFrame(columns=[
+            "Project ID", "Project Name", "Personnel", "Week", "Year", "Month", "Budgeted Hrs", "Spent Hrs"
+        ])
+        upload_to_dropbox(empty_df, file_path)
 
 # Generate Weeks for a Given Month
 def generate_weeks(year, month):
@@ -47,18 +60,27 @@ def main():
     st.image("image.png", use_container_width=True)
     st.title("Water & Environment Project Planning")
 
-    # Load Data
-    st.sidebar.subheader("Data Management")
-    hr_excel = download_from_dropbox(HR_FILE_PATH)
-    if hr_excel is None:
+    # Ensure the projects file exists in Dropbox
+    ensure_dropbox_projects_file_exists(PROJECTS_FILE_PATH)
+
+    # Load Human Resources File
+    try:
+        hr_excel = pd.ExcelFile(HR_FILE_LOCAL)
+    except Exception as e:
+        st.error(f"Error loading Human Resources file: {e}")
         st.stop()
+
+    # Load Sections from HR File
     hr_sections = hr_excel.sheet_names
 
+    # Load Projects Data from Dropbox
     projects_excel = download_from_dropbox(PROJECTS_FILE_PATH)
-    try:
+    if projects_excel is None:
+        projects_data = pd.DataFrame(columns=[
+            "Project ID", "Project Name", "Personnel", "Week", "Year", "Month", "Budgeted Hrs", "Spent Hrs"
+        ])
+    else:
         projects_data = pd.read_excel(projects_excel)
-    except Exception:
-        projects_data = pd.DataFrame(columns=["Project ID", "Project Name", "Personnel", "Week", "Year", "Month", "Budgeted Hrs", "Spent Hrs"])
 
     # Action Selection
     st.sidebar.subheader("Actions")
