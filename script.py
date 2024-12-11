@@ -40,23 +40,16 @@ def download_from_dropbox(dropbox_path, local_path, access_token):
 def ensure_file_exists(file_path, dropbox_path, columns=None):
     """Ensure the file exists locally or in Dropbox. Create it if not."""
     if not os.path.exists(file_path):
+        st.warning("File not found! Initializing a new file...")
         if columns:
             pd.DataFrame(columns=columns).to_excel(file_path, index=False)
             upload_to_dropbox(file_path, dropbox_path, ACCESS_TOKEN)
 
 # Clear Session State
 def clear_session_state():
-    """Clear session state completely."""
+    """Clear all session data."""
     for key in list(st.session_state.keys()):
         del st.session_state[key]
-
-# Add Calculated Fields
-def add_calculated_fields(data):
-    """Add Remaining Hours, Budgeted Cost, and Remaining Cost."""
-    data["Remaining Hours"] = data["Budgeted Hrs"] - data["Spent Hrs"]
-    data["Budgeted Cost"] = data["Budgeted Hrs"] * data["Cost/Hour"]
-    data["Remaining Cost"] = data["Remaining Hours"] * data["Cost/Hour"]
-    return data
 
 # Main Application
 def main():
@@ -70,70 +63,44 @@ def main():
         columns=["Project ID", "Project Name", "Personnel", "Week", "Year", "Month", "Budgeted Hrs", "Spent Hrs"]
     )
 
-    # Step 1: Select Action
-    st.subheader("Choose Action")
-    action = st.radio("What would you like to do?", ["Create New Project", "Update Existing Project"])
-
     # Load Existing Data
     try:
         project_data = pd.read_excel(LOCAL_PROJECTS_FILE)
     except FileNotFoundError:
         project_data = pd.DataFrame(columns=["Project ID", "Project Name", "Personnel", "Week", "Year", "Month", "Budgeted Hrs", "Spent Hrs"])
 
-    if action == "Create New Project":
-        st.subheader("Create a New Project")
-        project_id = st.text_input("Project ID", help="Enter a unique ID for the project.")
-        project_name = st.text_input("Project Name")
-        selected_year = st.selectbox("Year", range(datetime.now().year - 5, datetime.now().year + 6))
-        selected_month = st.selectbox("Month", [datetime(1900, m, 1).strftime("%B") for m in range(1, 13)])
-        weeks = [f"Week {i}" for i in range(1, 5)]
-        personnel = st.text_input("Personnel")
-        budgeted_hours = st.number_input("Budgeted Hours", min_value=0, step=1)
+    st.subheader("Project Details")
+    project_id = st.text_input("Project ID")
+    project_name = st.text_input("Project Name")
+    selected_year = st.selectbox("Year", range(datetime.now().year - 5, datetime.now().year + 6))
+    selected_month = st.selectbox("Month", [datetime(1900, m, 1).strftime("%B") for m in range(1, 13)])
+    weeks = [f"Week {i}" for i in range(1, 5)]
+    personnel = st.text_input("Personnel")
+    budgeted_hours = st.number_input("Budgeted Hours", min_value=0, step=1)
+    spent_hours = st.number_input("Spent Hours", min_value=0, step=1)
 
-        if st.button("Add Allocation"):
-            new_data = pd.DataFrame([{
-                "Project ID": project_id,
-                "Project Name": project_name,
-                "Personnel": personnel,
-                "Week": weeks[0],  # Example week
-                "Year": selected_year,
-                "Month": selected_month,
-                "Budgeted Hrs": budgeted_hours,
-                "Spent Hrs": None
-            }])
-            project_data = pd.concat([project_data, new_data], ignore_index=True)
-            st.success("Allocation added.")
+    if st.button("Add Allocation"):
+        new_entry = {
+            "Project ID": project_id,
+            "Project Name": project_name,
+            "Personnel": personnel,
+            "Week": weeks[0],  # Example week
+            "Year": selected_year,
+            "Month": selected_month,
+            "Budgeted Hrs": budgeted_hours,
+            "Spent Hrs": spent_hours,
+        }
+        st.session_state.project_data = pd.concat(
+            [st.session_state.get("project_data", project_data), pd.DataFrame([new_entry])], ignore_index=True
+        )
+        st.success("Allocation added.")
 
-        st.write("Current Allocations:")
-        st.dataframe(project_data)
-
-    elif action == "Update Existing Project":
-        st.subheader("Update Existing Project")
-        if project_data.empty:
-            st.warning("No existing data to update.")
-        else:
-            st.dataframe(project_data)
-            project_id = st.selectbox("Select Project ID to Update", project_data["Project ID"].unique())
-            selected_project = project_data[project_data["Project ID"] == project_id]
-            st.write("Selected Project Data:")
-            st.dataframe(selected_project)
-
-            updated_budgeted_hours = st.number_input("Updated Budgeted Hours", min_value=0, step=1)
-            updated_spent_hours = st.number_input("Updated Spent Hours", min_value=0, step=1)
-
-            if st.button("Update Allocation"):
-                project_data.loc[project_data["Project ID"] == project_id, "Budgeted Hrs"] = updated_budgeted_hours
-                project_data.loc[project_data["Project ID"] == project_id, "Spent Hrs"] = updated_spent_hours
-                st.success("Project updated.")
-
-    # Submit Changes
-    if st.button("Submit Changes"):
-        project_data = add_calculated_fields(project_data)
-        project_data.to_excel(LOCAL_PROJECTS_FILE, index=False)
+    if st.button("Submit Project"):
+        st.session_state.project_data.to_excel(LOCAL_PROJECTS_FILE, index=False)
         upload_to_dropbox(LOCAL_PROJECTS_FILE, DROPBOX_PROJECTS_PATH, ACCESS_TOKEN)
-        st.success("Changes saved and uploaded.")
+        clear_session_state()
+        st.success("Project submitted successfully!")
 
-    # Download Latest File
     if st.button("Download File"):
         with open(LOCAL_PROJECTS_FILE, "rb") as file:
             st.download_button(
