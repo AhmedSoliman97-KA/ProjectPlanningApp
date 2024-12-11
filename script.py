@@ -80,7 +80,7 @@ def main():
     if projects_excel is None:
         projects_data = pd.DataFrame(columns=[
             "Project ID", "Project Name", "Personnel", "Week", "Year", "Month",
-            "Budgeted Hrs", "Spent Hrs", "Remaining Hrs", "Cost/Hr", "Budgeted Cost",
+            "Budgeted Hrs", "Spent Hrs", "Remaining Hrs", "Cost/Hour", "Budgeted Cost",
             "Remaining Cost", "Section", "Category"
         ])
     else:
@@ -120,7 +120,7 @@ def main():
                 # Fetch engineer details from Human Resources file
                 engineer_details = engineers_data[engineers_data["Name"] == engineer].iloc[0]
                 section = engineer_details.get("Section", "Unknown")
-                cost_per_hour = engineer_details.get("Cost/Hr", 0)
+                cost_per_hour = engineer_details.get("Cost/Hour", 0)
                 category = engineer_details.get("Category", "N/A")
 
                 st.markdown(f"### Engineer: {engineer}")
@@ -147,7 +147,7 @@ def main():
                             "Budgeted Hrs": budgeted_hours,
                             "Spent Hrs": spent_hours,
                             "Remaining Hrs": remaining_hours,
-                            "Cost/Hr": cost_per_hour,
+                            "Cost/Hour": cost_per_hour,
                             "Budgeted Cost": budgeted_cost,
                             "Remaining Cost": remaining_cost,
                             "Section": section,
