@@ -55,15 +55,16 @@ def clear_all_session_data():
     for key in list(st.session_state.keys()):
         del st.session_state[key]
 
-# Load Engineers from Human Resources
-def load_engineers(file_path, selected_section):
-    """Load engineer names from the Human Resources file."""
-    try:
-        data = pd.read_excel(file_path, sheet_name=selected_section)
-        return data["Name"].dropna().tolist()
-    except Exception as e:
-        st.error(f"Error loading Human Resources data: {e}")
-        return []
+# Add Calculated Fields
+def add_calculated_fields(project_data, hr_data):
+    """Add calculated fields like Remaining Hours, Budgeted Cost, and Remaining Cost."""
+    project_data = project_data.copy()
+    project_data["Remaining Hours"] = project_data["Budgeted Hrs"] - project_data.get("Spent Hrs", 0)
+    project_data = project_data.merge(hr_data[["Name", "Cost/Hour"]], left_on="Personnel", right_on="Name", how="left")
+    project_data["Budgeted Cost"] = project_data["Budgeted Hrs"] * project_data["Cost/Hour"]
+    project_data["Remaining Cost"] = project_data["Remaining Hours"] * project_data["Cost/Hour"]
+    project_data.drop(columns=["Name"], inplace=True)  # Drop redundant column
+    return project_data
 
 # Main Application
 def main():
@@ -153,6 +154,7 @@ def main():
 
                     # Save and reset
                     final_data = pd.concat([existing_data, summary_data], ignore_index=True)
+                    final_data = add_calculated_fields(final_data, hr_data)
                     final_data.to_excel(LOCAL_PROJECTS_FILE, index=False)
                     upload_to_dropbox(LOCAL_PROJECTS_FILE, DROPBOX_PROJECTS_PATH, ACCESS_TOKEN)
                     clear_all_session_data()
