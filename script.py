@@ -81,7 +81,7 @@ def main():
         st.subheader("Create a New Project")
         project_id = st.text_input("Project ID", help="Enter a unique ID for the project.")
         project_name = st.text_input("Project Name", help="Enter the name of the project.")
-        st.write("Create project logic remains as-is for ms3.")
+        st.write("Create project logic is untouched.")
 
     elif action == "Update Existing Project":
         st.subheader("Update an Existing Project")
@@ -89,7 +89,8 @@ def main():
             st.warning("No existing projects found.")
             st.stop()
 
-        # Step 1: Extract and Normalize Sections
+        # Step 1: Filter by Section
+        st.subheader("Filter by Section")
         unique_sections = projects_data["Section"].dropna().str.strip().str.lower().unique().tolist()
         selected_section = st.selectbox("Choose a Section", unique_sections)
 
