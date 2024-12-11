@@ -56,10 +56,21 @@ def load_engineers(file_path, selected_section):
     """Load engineer names from the Human Resources file."""
     try:
         data = pd.read_excel(file_path, sheet_name=selected_section)
-        return data["Name"].dropna().tolist()
+        return data
     except Exception as e:
         st.error(f"Error loading Human Resources data: {e}")
-        return []
+        return pd.DataFrame()
+
+# Add Calculated Fields
+def add_calculated_fields(project_data, hr_data):
+    """Add calculated fields to project data."""
+    project_data = project_data.copy()
+    project_data["Remaining Hours"] = project_data["Budgeted Hrs"] - project_data.get("Spent Hrs", 0)
+    project_data = project_data.merge(hr_data[["Name", "Cost/Hour"]], left_on="Personnel", right_on="Name", how="left")
+    project_data["Budgeted Cost"] = project_data["Budgeted Hrs"] * project_data["Cost/Hour"]
+    project_data["Remaining Cost"] = project_data["Remaining Hours"] * project_data["Cost/Hour"]
+    project_data.drop(columns=["Name"], inplace=True)  # Drop redundant column
+    return project_data
 
 # Main Application
 def main():
@@ -91,7 +102,8 @@ def main():
     selected_section = st.selectbox("Choose a section", sections)
 
     # Load Engineers
-    engineers = load_engineers(LOCAL_HR_FILE, selected_section)
+    hr_data = load_engineers(LOCAL_HR_FILE, selected_section)
+    engineers = hr_data["Name"].dropna().tolist() if not hr_data.empty else []
     if not engineers:
         st.warning("No engineers found in the selected section.")
         return
@@ -160,6 +172,7 @@ def main():
 
                     # Append and save
                     final_data = pd.concat([existing_data, summary_data], ignore_index=True)
+                    final_data = add_calculated_fields(final_data, hr_data)
                     final_data.to_excel(LOCAL_PROJECTS_FILE, index=False)
 
                     # Upload to Dropbox
@@ -169,9 +182,8 @@ def main():
                     st.error(f"Error submitting project: {e}")
 
     elif action == "Update Existing Project":
-        # Implement Update Logic (includes both budgeted and spent hours)
         st.subheader("Update Existing Project")
-        pass  # Add logic for updating projects here.
+        pass  # Logic for updating projects.
 
 if __name__ == "__main__":
     main()
