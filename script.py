@@ -112,13 +112,16 @@ def main():
             "Engineer", "Month", "Week", "Budgeted Hours"
         ])
 
+        # Use pd.concat for appending rows
+        rows_to_add = []
         for engineer in engineers:
-            allocations_template = allocations_template.append({
+            rows_to_add.append({
                 "Engineer": engineer,
                 "Month": "",
                 "Week": "",
                 "Budgeted Hours": 0
-            }, ignore_index=True)
+            })
+        allocations_template = pd.concat([allocations_template, pd.DataFrame(rows_to_add)], ignore_index=True)
 
         # Tabular Input
         gb = GridOptionsBuilder.from_dataframe(allocations_template)
