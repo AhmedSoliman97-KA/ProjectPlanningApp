@@ -37,15 +37,22 @@ def upload_to_dropbox(df, dropbox_path):
 
 def ensure_dropbox_projects_file_exists(file_path):
     """Ensure the projects file exists in Dropbox, create if not."""
-    existing_file = download_from_dropbox(file_path)
-    if existing_file is None:
-        st.warning(f"{file_path} not found in Dropbox. Creating a new file...")
-        empty_df = pd.DataFrame(columns=[
-            "Project ID", "Project Name", "Personnel", "Week", "Year", "Month",
-            "Budgeted Hrs", "Spent Hrs", "Remaining Hrs", "Cost/Hour", "Budgeted Cost",
-            "Remaining Cost", "Section", "Category"
-        ])
-        upload_to_dropbox(empty_df, file_path)
+    try:
+        existing_file = download_from_dropbox(file_path)
+        if existing_file is None:
+            st.warning(f"{file_path} not found in Dropbox. Creating a new file...")
+            empty_df = pd.DataFrame(columns=[
+                "Project ID", "Project Name", "Personnel", "Week", "Year", "Month",
+                "Budgeted Hrs", "Spent Hrs", "Remaining Hrs", "Cost/Hour", "Budgeted Cost",
+                "Remaining Cost", "Section", "Category"
+            ])
+            upload_to_dropbox(empty_df, file_path)
+            st.success(f"File {file_path} successfully created in Dropbox.")
+        else:
+            st.info(f"File {file_path} already exists in Dropbox.")
+    except Exception as e:
+        st.error(f"Error ensuring file exists in Dropbox: {e}")
+        raise
 
 # Main Application
 def main():
