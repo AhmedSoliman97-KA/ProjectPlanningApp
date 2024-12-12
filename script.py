@@ -90,10 +90,6 @@ def main():
         project_name = st.text_input("Project Name", help="Enter the name of the project.")
         approved_budget = st.number_input("Approved Total Budget (in $)", min_value=0, step=1)
 
-        # Year and month selection
-        selected_year = st.selectbox("Year", range(datetime.now().year - 5, datetime.now().year + 6), index=5)
-        selected_month = st.selectbox("Month", list(month_name)[1:], index=datetime.now().month - 1)
-
         # Engineer selection with dropdown filter
         st.subheader("Filter Engineers by Section")
         selected_section = st.selectbox("Choose a Section", hr_sections)
@@ -107,8 +103,11 @@ def main():
             allocations_template = pd.DataFrame(columns=[
                 "Month", "Week", "Engineer", "Budgeted Hours"
             ])
-            for engineer in filtered_engineers:
-                allocations_template = allocations_template.append({"Engineer": engineer}, ignore_index=True)
+            allocations_template = pd.concat(
+                [allocations_template] +
+                [pd.DataFrame({"Engineer": [engineer]}) for engineer in filtered_engineers],
+                ignore_index=True
+            )
 
             gb = GridOptionsBuilder.from_dataframe(allocations_template)
             gb.configure_default_column(editable=True)
