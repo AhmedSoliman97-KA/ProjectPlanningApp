@@ -116,13 +116,18 @@ def main():
             updated_data = pd.DataFrame(response['data'])
 
             # Calculate total allocated cost
-            total_allocated_cost = 0
-            for index, row in updated_data.iterrows():
-                engineer_details = engineers_data[engineers_data["Name"] == row["Engineer"]].iloc[0]
-                cost_per_hour = engineer_details["Cost/Hour"]
-                total_allocated_cost += row["Budgeted Hours"] * cost_per_hour
+            updated_data["Cost/Hour"] = updated_data["Engineer"].map(
+                lambda eng: engineers_data.loc[engineers_data["Name"] == eng, "Cost/Hour"].values[0]
+                if not engineers_data[engineers_data["Name"] == eng].empty else 0
+            )
+            updated_data["Budgeted Cost"] = updated_data["Budgeted Hours"] * updated_data["Cost/Hour"]
+            total_allocated_cost = updated_data["Budgeted Cost"].sum()
 
-            # Display totals and summary
+            # Display allocation summary
+            st.subheader("Summary of Allocations")
+            st.dataframe(updated_data)
+
+            # Display totals
             st.metric("Total Allocated Budget (in $)", f"${total_allocated_cost:,.2f}")
             st.metric("Approved Total Budget (in $)", f"${approved_budget:,.2f}")
             st.metric("Remaining Budget (in $)", f"${approved_budget - total_allocated_cost:,.2f}")
