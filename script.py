@@ -55,47 +55,11 @@ def generate_weeks(year, month):
     weeks = []
     while start_date < end_date:
         week_label = f"Week {start_date.isocalendar()[1]} ({start_date.strftime('%b')})"
-        weeks.append(week_label)
+        weeks.append((week_label, start_date))
         start_date += timedelta(days=7)
     return weeks
 
-# Create Editable Table
-def create_editable_table(engineers, weeks, existing_data=None):
-    """Generate a dynamic editable table for weekly allocation."""
-    table_data = []
-    for engineer in engineers:
-        row = {"Engineer": engineer}
-        for week in weeks:
-            # If existing data exists, prefill; else default to 0
-            if existing_data is not None:
-                matching_row = existing_data[
-                    (existing_data["Personnel"] == engineer) & (existing_data["Week"] == week)
-                ]
-                row[week] = (
-                    matching_row["Budgeted Hrs"].values[0] if not matching_row.empty else 0
-                )
-            else:
-                row[week] = 0
-        table_data.append(row)
-    return pd.DataFrame(table_data)
-
-def update_table_inputs(df):
-    """Create input fields for editing the table."""
-    updated_rows = []
-    for i, row in df.iterrows():
-        updated_row = {"Engineer": row["Engineer"]}
-        for col in df.columns[1:]:  # Skip 'Engineer' column
-            updated_row[col] = st.number_input(
-                f"{col} ({row['Engineer']})",
-                min_value=0,
-                value=row[col],
-                step=1,
-                key=f"{row['Engineer']}_{col}",
-            )
-        updated_rows.append(updated_row)
-    return pd.DataFrame(updated_rows)
-
-# Main App
+# Main Application
 def main():
     st.image("image.png", use_container_width=True)
     st.title("Water & Environment Project Planning")
@@ -123,97 +87,119 @@ def main():
     else:
         projects_data = pd.read_excel(projects_excel)
 
-    # Sidebar Action Selection
+    # Action Selection
     st.sidebar.subheader("Actions")
     action = st.sidebar.radio("Choose an Action", ["Create New Project", "Update Existing Project"])
 
+    # Create New Project
     if action == "Create New Project":
         st.subheader("Create a New Project")
 
-        # Input project details
+        # Project details input
         project_id = st.text_input("Project ID", help="Enter a unique ID for the project.")
         project_name = st.text_input("Project Name", help="Enter the name of the project.")
+        approved_budget = st.number_input("Approved Total Budget (in $)", min_value=0, step=1)
+
+        # Year and month selection
         selected_year = st.selectbox("Year", range(datetime.now().year - 5, datetime.now().year + 6), index=5)
         selected_month = st.selectbox("Month", list(month_name)[1:], index=datetime.now().month - 1)
+
+        # Engineer selection
+        st.subheader("Select Engineers for Allocation")
         selected_section = st.selectbox("Choose a Section", hr_sections)
-        engineers = hr_excel.parse(sheet_name=selected_section)["Name"].dropna().tolist()
+        engineers_data = hr_excel.parse(sheet_name=selected_section)
+        engineers = engineers_data["Name"].dropna().tolist()
+        selected_engineers = st.multiselect("Choose Engineers", options=engineers, help="Select engineers to allocate hours.")
 
-        weeks = generate_weeks(selected_year, list(month_name).index(selected_month))
+        allocations = []
+        total_allocated_budget = 0
 
-        st.subheader("Allocate Weekly Hours")
-        table_data = create_editable_table(engineers, weeks)
-        edited_table = update_table_inputs(table_data)
+        if selected_engineers:
+            st.subheader("Allocate Weekly Hours")
 
-        # Display Summary
-        st.subheader("Summary of Allocations")
-        st.dataframe(edited_table)
+            # Generate Weeks
+            weeks = generate_weeks(selected_year, list(month_name).index(selected_month))
 
-        # Submit Button
-        if st.button("Submit Project"):
-            allocations = []
-            for _, row in edited_table.iterrows():
-                for week in weeks:
-                    budgeted_hours = row[week]
+            for engineer in selected_engineers:
+                # Fetch engineer details from Human Resources file
+                engineer_details = engineers_data[engineers_data["Name"] == engineer].iloc[0]
+                section = engineer_details.get("Section", "Unknown")
+                category = engineer_details.get("Category", "N/A")
+                cost_per_hour = pd.to_numeric(engineer_details.get("Cost/Hour", 0), errors='coerce')
+                cost_per_hour = cost_per_hour if not pd.isna(cost_per_hour) else 0
+
+                st.markdown(f"### Engineer: {engineer}")
+                for week_label, _ in weeks:
+                    budgeted_hours = st.number_input(
+                        f"Budgeted Hours ({week_label}) for {engineer}",
+                        min_value=0,
+                        step=1,
+                        key=f"{engineer}_{week_label}"
+                    )
                     if budgeted_hours > 0:
+                        spent_hours = 0
+                        remaining_hours = budgeted_hours - spent_hours
+                        budgeted_cost = budgeted_hours * cost_per_hour
+                        remaining_cost = remaining_hours * cost_per_hour
+
+                        total_allocated_budget += budgeted_cost
+
                         allocations.append({
                             "Project ID": project_id,
                             "Project Name": project_name,
-                            "Personnel": row["Engineer"],
-                            "Week": week,
+                            "Personnel": engineer,
+                            "Week": week_label,
                             "Year": selected_year,
                             "Month": selected_month,
                             "Budgeted Hrs": budgeted_hours,
+                            "Spent Hrs": spent_hours,
+                            "Remaining Hrs": remaining_hours,
+                            "Cost/Hour": cost_per_hour,
+                            "Budgeted Cost": budgeted_cost,
+                            "Remaining Cost": remaining_cost,
+                            "Section": section,
+                            "Category": category
                         })
+
+        # Display Allocation Summary and Comparison
+        if allocations:
+            st.subheader("Summary of Allocations")
             allocation_df = pd.DataFrame(allocations)
-            projects_data = pd.concat([projects_data, allocation_df], ignore_index=True)
-            upload_to_dropbox(projects_data, PROJECTS_FILE_PATH)
-            st.success("Project submitted successfully!")
-
-    elif action == "Update Existing Project":
-        st.subheader("Update an Existing Project")
-        selected_section = st.selectbox("Choose a Section", hr_sections)
-        filtered_projects = projects_data[projects_data["Section"] == selected_section]
-
-        if filtered_projects.empty:
-            st.warning(f"No projects found for the section: {selected_section}.")
-            return
-
-        selected_project = st.selectbox("Choose a Project", filtered_projects["Project Name"].unique())
-        project_details = filtered_projects[filtered_projects["Project Name"] == selected_project]
-        engineers = project_details["Personnel"].unique()
-        weeks = project_details["Week"].unique()
-
-        st.subheader("Update Weekly Allocations")
-        table_data = create_editable_table(engineers, weeks, project_details)
-        edited_table = update_table_inputs(table_data)
-
-        # Display Summary
-        st.subheader("Updated Allocations")
-        st.dataframe(edited_table)
-
-        if st.button("Save Updates"):
-            updated_rows = []
-            for _, row in edited_table.iterrows():
-                for week in weeks:
-                    budgeted_hours = row[week]
-                    if budgeted_hours > 0:
-                        updated_rows.append({
-                            "Project ID": selected_project,
-                            "Project Name": selected_project,
-                            "Personnel": row["Engineer"],
-                            "Week": week,
-                            "Budgeted Hrs": budgeted_hours,
-                        })
-            updated_df = pd.DataFrame(updated_rows)
-            projects_data = pd.concat([projects_data, updated_df], ignore_index=True)
-            upload_to_dropbox(projects_data, PROJECTS_FILE_PATH)
-            st.success("Project updates saved!")
+            st.dataframe(allocation_df)
 
             # Display Total Allocated Budget
             st.metric("Total Allocated Budget (in $)", f"${total_allocated_budget:,.2f}")
             st.metric("Approved Total Budget (in $)", f"${approved_budget:,.2f}")
             st.metric("Difference (Remaining/Over-Allocated)", f"${approved_budget - total_allocated_budget:,.2f}")
-        
+
+        # Submit Button
+        if st.button("Submit Project"):
+            if not project_id.strip():
+                st.error("Project ID cannot be empty. Please enter a valid Project ID.")
+            elif not project_name.strip():
+                st.error("Project Name cannot be empty. Please enter a valid Project Name.")
+            elif not allocations:
+                st.error("No allocations have been made. Please allocate hours before submitting.")
+            else:
+                new_data = pd.DataFrame(allocations)
+                new_data["Composite Key"] = (
+                    new_data["Project ID"] + "_" +
+                    new_data["Project Name"] + "_" +
+                    new_data["Personnel"] + "_" +
+                    new_data["Week"]
+                )
+                projects_data["Composite Key"] = (
+                    projects_data["Project ID"] + "_" +
+                    projects_data["Project Name"] + "_" +
+                    projects_data["Personnel"] + "_" +
+                    projects_data["Week"]
+                )
+                updated_data = projects_data[~projects_data["Composite Key"].isin(new_data["Composite Key"])]
+                updated_data = pd.concat([updated_data, new_data], ignore_index=True)
+                updated_data.drop(columns=["Composite Key"], inplace=True)
+                upload_to_dropbox(updated_data, PROJECTS_FILE_PATH)
+                st.success("Project submitted successfully!")
+
     # Update Existing Project
     if action == "Update Existing Project":
         st.subheader("Update an Existing Project")
