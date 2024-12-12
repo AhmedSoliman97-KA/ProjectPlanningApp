@@ -32,7 +32,8 @@ def get_access_token():
 def download_from_dropbox(file_path):
     """Download a file from Dropbox."""
     try:
-        dbx = dropbox.Dropbox(ACCESS_TOKEN)
+        access_token = get_access_token()  # Get a valid token
+        dbx = dropbox.Dropbox(access_token)  # Use the dynamic token
         metadata, res = dbx.files_download(file_path)
         return pd.ExcelFile(res.content)
     except dropbox.exceptions.ApiError as e:
@@ -45,7 +46,8 @@ def download_from_dropbox(file_path):
 def upload_to_dropbox(df, dropbox_path):
     """Upload a DataFrame to Dropbox as an Excel file."""
     try:
-        dbx = dropbox.Dropbox(ACCESS_TOKEN)
+        access_token = get_access_token()  # Get a valid token
+        dbx = dropbox.Dropbox(access_token)  # Use the dynamic token
         with pd.ExcelWriter("temp.xlsx", engine="openpyxl") as writer:
             df.to_excel(writer, index=False)
         with open("temp.xlsx", "rb") as f:
@@ -57,15 +59,19 @@ def upload_to_dropbox(df, dropbox_path):
 
 def ensure_dropbox_projects_file_exists(file_path):
     """Ensure the projects file exists in Dropbox, create if not."""
-    existing_file = download_from_dropbox(file_path)
-    if existing_file is None:
-        st.warning(f"{file_path} not found in Dropbox. Creating a new file...")
-        empty_df = pd.DataFrame(columns=[
-            "Project ID", "Project Name", "Personnel", "Week", "Year", "Month",
-            "Budgeted Hrs", "Spent Hrs", "Remaining Hrs", "Cost/Hour", "Budgeted Cost",
-            "Remaining Cost", "Section", "Category"
-        ])
-        upload_to_dropbox(empty_df, file_path)
+    try:
+        existing_file = download_from_dropbox(file_path)  # Ensure token is refreshed dynamically
+        if existing_file is None:
+            st.warning(f"{file_path} not found in Dropbox. Creating a new file...")
+            empty_df = pd.DataFrame(columns=[
+                "Project ID", "Project Name", "Personnel", "Week", "Year", "Month",
+                "Budgeted Hrs", "Spent Hrs", "Remaining Hrs", "Cost/Hour", "Budgeted Cost",
+                "Remaining Cost", "Section", "Category"
+            ])
+            upload_to_dropbox(empty_df, file_path)
+    except Exception as e:
+        st.error(f"Error ensuring file exists: {e}")
+
 
 # Main Application
 def main():
