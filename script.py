@@ -385,12 +385,13 @@ def main():
                     # Unique widget key using section, engineer, and week for budgeted hours
                     widget_key_budgeted = f"updated_budgeted_{selected_section}_{engineer}_{week}"
                     updated_budgeted_inputs[week] = st.number_input(
-                        f"{week}",
+                        f"Budgeted Hours ({week})",
                         min_value=0,
-                        value=int(existing_allocation["Budgeted Hrs"]),
+                        value=int(existing_allocation.get("Budgeted Hrs", 0)),
                         step=1,
-                        key=widget_key_budgeted
+                        key=f"{selected_project}_{selected_section}_{engineer}_{week}_updated_budgeted"
                     )
+
         
             st.markdown("### Spent Hours")
             for idx, (week, col) in enumerate(zip(weeks, col_list_spent)):
