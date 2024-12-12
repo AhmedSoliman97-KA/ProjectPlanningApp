@@ -142,15 +142,15 @@ def main():
                         )
             
                 # Save allocation
-                for week_label, start_date in weeks.items():
+                col_list = st.columns(len(weeks))
+                for idx, (week_label, col) in enumerate(zip(weeks.keys(), col_list)):
                     with col:
                         budgeted_hours_inputs[week_label] = st.number_input(
-                            f"Budgeted ({week_label})",
+                            f"{week_label}",
                             min_value=0,
                             step=1,
                             key=f"{engineer}_{week_label}_budgeted"
                         )
-
                         total_allocated_budget += budgeted_cost
             
                         allocations.append({
@@ -161,7 +161,6 @@ def main():
                             "Year": selected_year,
                             "Month": selected_month,
                             "Budgeted Hrs": budgeted_hours,
-                            "Spent Hrs": 0,
                             "Remaining Hrs": budgeted_hours,
                             "Cost/Hour": cost_per_hour,
                             "Budgeted Cost": budgeted_cost,
