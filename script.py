@@ -113,24 +113,17 @@ def main():
 
         # Ag-Grid Configuration for Tabular Input
         st.subheader("Allocate Weekly Hours")
-        allocations_template = pd.DataFrame(columns=[
-            "Engineer", "Week", "Budgeted Hours", "Spent Hours", "Cost/Hour", "Budgeted Cost", "Remaining Cost"
-        ])
+        allocations_template = pd.DataFrame(columns=["Month-Week", "Engineer", "Budgeted Hours"])
 
         # Add engineer details dynamically
+        weeks = generate_weeks(selected_year, list(month_name).index(selected_month))
         for engineer in engineers:
-            engineer_details = engineers_data[engineers_data["Name"] == engineer].iloc[0]
-            cost_per_hour = pd.to_numeric(engineer_details.get("Cost/Hour", 0), errors='coerce')
-            cost_per_hour = cost_per_hour if not pd.isna(cost_per_hour) else 0
-            allocations_template = pd.concat([allocations_template, pd.DataFrame([{
-                "Engineer": engineer,
-                "Week": "",
-                "Budgeted Hours": 0,
-                "Spent Hours": 0,
-                "Cost/Hour": cost_per_hour,
-                "Budgeted Cost": 0,
-                "Remaining Cost": 0
-            }])], ignore_index=True)
+            for week_label, _ in weeks:
+                allocations_template = pd.concat([allocations_template, pd.DataFrame([{
+                    "Month-Week": week_label,
+                    "Engineer": engineer,
+                    "Budgeted Hours": 0
+                }])], ignore_index=True)
 
         gb = GridOptionsBuilder.from_dataframe(allocations_template)
         gb.configure_default_column(editable=True)
@@ -140,33 +133,38 @@ def main():
         response = AgGrid(allocations_template, gridOptions=grid_options, update_mode='MANUAL')
         updated_data = pd.DataFrame(response['data'])
 
-        # Recalculate Budgeted and Remaining Costs dynamically
-        updated_data["Budgeted Cost"] = updated_data["Budgeted Hours"] * updated_data["Cost/Hour"]
-        updated_data["Remaining Cost"] = updated_data["Budgeted Cost"] - (updated_data["Spent Hours"] * updated_data["Cost/Hour"])
-
         st.subheader("Summary of Allocations")
-        st.dataframe(updated_data)
+        total_budgeted_hours = updated_data["Budgeted Hours"].sum()
+        st.metric("Total Budgeted Hours", f"{total_budgeted_hours} hrs")
+        st.metric("Approved Total Budget (in $)", f"${approved_budget:,.2f}")
 
         # Submit Button
         if st.button("Submit Project"):
-            new_data = updated_data
-            new_data["Composite Key"] = (
-                project_id + "_" +
-                project_name + "_" +
-                new_data["Engineer"] + "_" +
-                new_data["Week"]
-            )
-            projects_data["Composite Key"] = (
-                projects_data["Project ID"] + "_" +
-                projects_data["Project Name"] + "_" +
-                projects_data["Personnel"] + "_" +
-                projects_data["Week"]
-            )
-            updated_projects = projects_data[~projects_data["Composite Key"].isin(new_data["Composite Key"])]
-            final_data = pd.concat([updated_projects, new_data], ignore_index=True)
-            final_data.drop(columns=["Composite Key"], inplace=True)
-            upload_to_dropbox(final_data, PROJECTS_FILE_PATH)
-            st.success("Project submitted successfully!")
+            if not project_id.strip():
+                st.error("Project ID cannot be empty. Please enter a valid Project ID.")
+            elif not project_name.strip():
+                st.error("Project Name cannot be empty. Please enter a valid Project Name.")
+            elif updated_data["Budgeted Hours"].sum() == 0:
+                st.error("No budgeted hours provided. Please allocate hours before submitting.")
+            else:
+                new_data = updated_data
+                new_data["Composite Key"] = (
+                    project_id + "_" +
+                    project_name + "_" +
+                    new_data["Engineer"] + "_" +
+                    new_data["Month-Week"]
+                )
+                projects_data["Composite Key"] = (
+                    projects_data["Project ID"] + "_" +
+                    projects_data["Project Name"] + "_" +
+                    projects_data["Personnel"] + "_" +
+                    projects_data["Week"]
+                )
+                updated_projects = projects_data[~projects_data["Composite Key"].isin(new_data["Composite Key"])]
+                final_data = pd.concat([updated_projects, new_data], ignore_index=True)
+                final_data.drop(columns=["Composite Key"], inplace=True)
+                upload_to_dropbox(final_data, PROJECTS_FILE_PATH)
+                st.success("Project submitted successfully!")
 
     # Update Existing Project
     if action == "Update Existing Project":
@@ -192,34 +190,17 @@ def main():
         st.subheader("Current Allocations for Selected Project")
         st.dataframe(project_details)
 
-        # Ag-Grid for Updating Allocations
-        gb = GridOptionsBuilder.from_dataframe(project_details)
-        gb.configure_default_column(editable=True)
-        grid_options = gb.build()
-        response = AgGrid(project_details, gridOptions=grid_options, update_mode='MANUAL')
-        updated_project_data = pd.DataFrame(response['data'])
+        # Totals for Validation
+        current_budgeted_hours = project_details["Budgeted Hrs"].sum()
+        current_spent_hours = project_details["Spent Hrs"].sum()
+        current_budgeted_cost = project_details["Budgeted Cost"].sum()
+        current_spent_cost = (project_details["Spent Hrs"] * project_details["Cost/Hour"]).sum()
 
-        # Submit Updates
-        if st.button("Save Updates"):
-            updated_project_data["Composite Key"] = (
-                updated_project_data["Project ID"] + "_" +
-                updated_project_data["Project Name"] + "_" +
-                updated_project_data["Personnel"] + "_" +
-                updated_project_data["Week"]
-            )
-            projects_data["Composite Key"] = (
-                projects_data["Project ID"] + "_" +
-                projects_data["Project Name"] + "_" +
-                projects_data["Personnel"] + "_" +
-                projects_data["Week"]
-            )
-            remaining_data = projects_data[~projects_data["Composite Key"].isin(updated_project_data["Composite Key"])]
-            final_data = pd.concat([remaining_data, updated_project_data], ignore_index=True)
-            final_data.drop(columns=["Composite Key"], inplace=True)
-
-            # Upload updated data back to Dropbox
-            upload_to_dropbox(final_data, PROJECTS_FILE_PATH)
-            st.success(f"Updates to '{selected_project}' saved successfully!")
+        st.metric("Current Budgeted Hours", f"{current_budgeted_hours} hrs")
+        st.metric("Current Spent Hours", f"{current_spent_hours} hrs")
+        st.metric("Current Budgeted Cost", f"${current_budgeted_cost:,.2f}")
+        st.metric("Current Spent Cost", f"${current_spent_cost:,.2f}")
 
 if __name__ == "__main__":
     main()
+
