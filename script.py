@@ -142,16 +142,46 @@ def main():
                         )
             
                 # Save allocation
-                col_list = st.columns(len(weeks))
-                for idx, (week_label, col) in enumerate(zip(weeks.keys(), col_list)):
-                    with col:
-                        budgeted_hours_inputs[week_label] = st.number_input(
-                            f"{week_label}",
-                            min_value=0,
-                            step=1,
-                            key=f"{engineer}_{week_label}_budgeted"
-                        )
-                        total_allocated_budget += budgeted_cost
+                # Generate weeks horizontally with unique keys
+                for engineer in selected_engineers:
+                    engineer_details = engineers_data[engineers_data["Name"] == engineer].iloc[0]
+                    cost_per_hour = pd.to_numeric(engineer_details.get("Cost/Hour", 0), errors="coerce")
+                    st.markdown(f"### Engineer: {engineer}")
+                
+                    # Create columns for weeks
+                    col_list = st.columns(len(weeks))
+                    budgeted_hours_inputs = {}
+                
+                    for idx, (week_label, col) in enumerate(zip(weeks.keys(), col_list)):
+                        with col:
+                            # Unique key using engineer and week
+                            widget_key = f"budgeted_{engineer}_{week_label}"
+                            budgeted_hours_inputs[week_label] = st.number_input(
+                                f"{week_label}",
+                                min_value=0,
+                                step=1,
+                                key=widget_key
+                            )
+                            budgeted_cost = budgeted_hours_inputs[week_label] * cost_per_hour
+                
+                            # Append allocation data
+                            if budgeted_hours_inputs[week_label] > 0:
+                                allocations.append({
+                                    "Project ID": project_id,
+                                    "Project Name": project_name,
+                                    "Personnel": engineer,
+                                    "Week": week_label,
+                                    "Year": selected_year,
+                                    "Month": selected_month,
+                                    "Budgeted Hrs": budgeted_hours_inputs[week_label],
+                                    "Remaining Hrs": budgeted_hours_inputs[week_label],
+                                    "Cost/Hour": cost_per_hour,
+                                    "Budgeted Cost": budgeted_cost,
+                                    "Remaining Cost": budgeted_cost,
+                                    "Section": engineer_details.get("Section", "Unknown"),
+                                    "Category": engineer_details.get("Category", "N/A")
+                                })
+
             
                         allocations.append({
                             "Project ID": project_id,
@@ -286,16 +316,14 @@ def main():
             col_list = st.columns(len(weeks))
             updated_budgeted_inputs = {}
         
-            for idx, (week, col) in enumerate(zip(weeks, col_list)):
-                existing_allocation = engineer_details[engineer_details["Week"] == week].iloc[0]
-        
+            col_list = st.columns(len(weeks))
+            for idx, (week_label, col) in enumerate(zip(week_labels, col_list)):
                 with col:
-                    updated_budgeted_inputs[week] = st.number_input(
-                        f"{week}",
+                    budgeted_hours_inputs[week_label] = st.number_input(
+                        f"Budgeted ({week_label})",
                         min_value=0,
-                        value=int(existing_allocation.get("Budgeted Hrs", 0)),
                         step=1,
-                        key=f"{engineer}_{week}_updated_budgeted"
+                        key=f"{engineer}_{week_label}_budgeted"
                     )
         
             # Save updated rows
