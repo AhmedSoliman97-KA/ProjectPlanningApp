@@ -103,7 +103,7 @@ def main():
 
         # Year and month selection
         selected_year = st.selectbox("Year", range(datetime.now().year - 5, datetime.now().year + 6), index=5)
-        selected_month = st.selectbox("Month", list(month_name)[1:], index=datetime.now().month - 1)
+selected_months = st.multiselect("Months", list(month_name)[1:], default=[datetime.now().strftime("%B")])
 
         # Engineer selection
         st.subheader("Select Engineers for Allocation")
@@ -119,7 +119,17 @@ def main():
             st.subheader("Allocate Weekly Hours")
 
             # Generate Weeks
-            weeks = generate_weeks(selected_year, list(month_name).index(selected_month))
+            allocations_template = pd.DataFrame(columns=["Month", "Week Start Date", "Budgeted Hours"])
+            for month in selected_months:
+                month_index = list(month_name).index(month)
+                weeks = generate_weeks(selected_year, month_index)
+                for week in weeks:
+                    allocations_template = allocations_template.append({
+                        "Month": month,
+                        "Week Start Date": week,
+                        "Budgeted Hours": 0
+                    }, ignore_index=True)
+
 
             for engineer in selected_engineers:
                 # Fetch engineer details from Human Resources file
