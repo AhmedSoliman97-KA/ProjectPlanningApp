@@ -44,7 +44,7 @@ def ensure_dropbox_projects_file_exists(file_path):
         empty_df = pd.DataFrame(columns=[
             "Project ID", "Project Name", "Personnel", "Week", "Year", "Month",
             "Budgeted Hrs", "Spent Hrs", "Remaining Hrs", "Cost/Hour", "Budgeted Cost",
-            "Remaining Cost", "Section", "Category"
+            "Remaining Cost", "Section", "Category", "Approved Total Budget"
         ])
         upload_to_dropbox(empty_df, file_path)
 
@@ -82,7 +82,7 @@ def main():
         projects_data = pd.DataFrame(columns=[
             "Project ID", "Project Name", "Personnel", "Week", "Year", "Month",
             "Budgeted Hrs", "Spent Hrs", "Remaining Hrs", "Cost/Hour", "Budgeted Cost",
-            "Remaining Cost", "Section", "Category"
+            "Remaining Cost", "Section", "Category", "Approved Total Budget"
         ])
     else:
         projects_data = pd.read_excel(projects_excel)
@@ -158,7 +158,8 @@ def main():
                             "Budgeted Cost": budgeted_cost,
                             "Remaining Cost": remaining_cost,
                             "Section": section,
-                            "Category": category
+                            "Category": category,
+                            "Approved Total Budget": approved_budget
                         })
 
         # Display Allocation Summary and Comparison
@@ -174,24 +175,36 @@ def main():
 
         # Submit Button
         if st.button("Submit Project"):
-            new_data = pd.DataFrame(allocations)
-            new_data["Composite Key"] = (
-                new_data["Project ID"] + "_" +
-                new_data["Project Name"] + "_" +
-                new_data["Personnel"] + "_" +
-                new_data["Week"]
-            )
-            projects_data["Composite Key"] = (
-                projects_data["Project ID"] + "_" +
-                projects_data["Project Name"] + "_" +
-                projects_data["Personnel"] + "_" +
-                projects_data["Week"]
-            )
-            updated_data = projects_data[~projects_data["Composite Key"].isin(new_data["Composite Key"])]
-            updated_data = pd.concat([updated_data, new_data], ignore_index=True)
-            updated_data.drop(columns=["Composite Key"], inplace=True)
-            upload_to_dropbox(updated_data, PROJECTS_FILE_PATH)
-            st.success("Project submitted successfully!")
+            if not project_id.strip():
+                st.error("Project ID cannot be empty. Please enter a valid Project ID.")
+            elif not project_name.strip():
+                st.error("Project Name cannot be empty. Please enter a valid Project Name.")
+            elif not allocations:
+                st.error("No allocations have been made. Please allocate hours before submitting.")
+            else:
+                # Convert allocations to DataFrame
+                new_data = pd.DataFrame(allocations)
+
+                # Add Composite Key for uniqueness
+                new_data["Composite Key"] = (
+                    new_data["Project ID"] + "_" +
+                    new_data["Project Name"] + "_" +
+                    new_data["Personnel"] + "_" +
+                    new_data["Week"]
+                )
+                projects_data["Composite Key"] = (
+                    projects_data["Project ID"] + "_" +
+                    projects_data["Project Name"] + "_" +
+                    projects_data["Personnel"] + "_" +
+                    projects_data["Week"]
+                )
+
+                # Remove duplicates and append new data
+                updated_data = projects_data[~projects_data["Composite Key"].isin(new_data["Composite Key"])]
+                updated_data = pd.concat([updated_data, new_data], ignore_index=True)
+                updated_data.drop(columns=["Composite Key"], inplace=True)
+                upload_to_dropbox(updated_data, PROJECTS_FILE_PATH)
+                st.success("Project submitted successfully!")
 
     # Update Existing Project
     if action == "Update Existing Project":
@@ -216,6 +229,16 @@ def main():
         # Step 3: Display Current Allocations for the Selected Project
         st.subheader("Current Allocations for Selected Project")
         st.dataframe(project_details)
+
+        # Summary Metrics
+        total_approved_budget = project_details["Approved Total Budget"].max()
+        total_allocated_budget = project_details["Budgeted Cost"].sum()
+        total_spent_cost = (project_details["Spent Hrs"] * project_details["Cost/Hour"]).sum()
+        remaining_cost = total_approved_budget - total_spent_cost
+
+        st.metric("Total Approved Budget (in $)", f"${total_approved_budget:,.2f}")
+        st.metric("Total Allocated Budget (in $)", f"${total_allocated_budget:,.2f}")
+        st.metric("Remaining Cost (in $)", f"${remaining_cost:,.2f}")
 
         # Step 4: Select Engineer for Update
         st.subheader("Select Engineer")
@@ -259,7 +282,8 @@ def main():
                 "Budgeted Cost": budgeted_cost,
                 "Remaining Cost": remaining_cost,
                 "Section": row["Section"],
-                "Category": row["Category"]
+                "Category": row["Category"],
+                "Approved Total Budget": total_approved_budget
             })
 
         # Display Summary of Updated Allocations
@@ -295,3 +319,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
