@@ -335,13 +335,17 @@ def main():
                 spent_cost = updated_spent * cost_per_hour
                 remaining_cost = budgeted_cost - spent_cost
                     
+                # Define default values for selected_months if not already selected
+                selected_months = [month_name[datetime.now().month]]  # Default to current month
+                
+                # Existing logic for updating rows
                 updated_rows.append({
                     "Project ID": existing_allocation.get("Project ID", selected_project),
                     "Project Name": existing_allocation.get("Project Name", ""),
                     "Personnel": engineer,
                     "Week": week,
                     "Year": existing_allocation.get("Year", selected_year),
-                    "Month": existing_allocation.get("Month", ", ".join(selected_months)),
+                    "Month": existing_allocation.get("Month", ", ".join(selected_months)),  # Use default `selected_months`
                     "Budgeted Hrs": updated_budgeted,
                     "Spent Hrs": updated_spent,
                     "Remaining Hrs": updated_budgeted - updated_spent,
@@ -351,7 +355,6 @@ def main():
                     "Section": selected_section,
                     "Category": existing_allocation.get("Category", "N/A")
                 })
-
 
         # Step 5: Update Allocations for Each Selected Engineer
         st.subheader("Update Allocations")
