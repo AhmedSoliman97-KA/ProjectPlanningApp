@@ -5,9 +5,29 @@ from calendar import month_name
 import dropbox
 from st_aggrid import AgGrid, GridOptionsBuilder
 
-# Dropbox Settings
-ACCESS_TOKEN = "ssl.u.AFbHvxxiLExZLhPWHviU_aGF1LCc-DKzbQP9g34VD-AH2Y_eTSu60cOipCQuBd4bDi-qr9WCEOyFLkkT_KZzyHM0rZFzDNSct3tpYb-aDQNKjBVWXL-p2omLSt_FtZaH5qwkxDeEdDLuUSUQczAgxas541XWBSDc3EJATtMPj1WhoJqLhSh1uk4KUzkmjyAi1z_LwiQF2gB9zkGXZP7mYwctt7kYZw7DJnOFmXykWF8Vn0chQN9rGxsLyyP4S7Q-qq3Ay0Om7xY6a40keN7Ssut0sAEiepCtT7wj9xapJtW4ubwlqVY9R-7DR-84IaWFTPwGBN0BeKXK6UMn2USLWXpiydgwe4KzF7wU6wvucdg3cxF4iv5IQXDKxeQxYrgBcFbvR3t8RMOIqEHsoPjnQC2tkVhzch0nw9tXbC8sffzNjKI41iGuXi3Cit7vGNkLytu9M6ZnK46jziBtyeCTLq3WBpFugbyehd_CrL9CsVFTntUSQ2GR7voCY6sOcuxV2VOqVjydC91waOrIV-yxu72yxiB7IOjiXGJIp0qUUQ1qsM1kzRebC3dgjYeCzAOrHyDEBFzPiiKtaKAKFRz9EEnm8yApN3qP9s-tBDCTI3lqkvYi8Nw4IkMJqhpsQ6qYXCij5HM4a7x13DrQbaHASxaJjVzuoLkSzSMgBgXI1LmEXsDdNPTtfb3Co9wm5eqxxhdGKAnBqg1Yg4H5vVpDZcs4XBQVmuDt4rN34bOzqpxC36llQ_maYONUq9oiD0VfQTBPugg1i1N3EHh0iSHMEaKYOgRRtXx8jFmhCOou9PU2TSWS6fvYA4KIs0O4a2uvVa_m_V4sMwKOmrhAueCmp-9On3ZYuXM5G1RbSzqDsRLvMXYx1p8LmJT9KfgcoFta9cZr-7oRvBOVlUYLOOL9Uc6m82TIfWfkjlv4KN0-0gyRu_wWEbtbCVdrIfLeDoba-Qqf2qZsIbu4rLkTT7TrEvznTUfrSroPZBHZhGOqc05tdiC3aHQay5wAbXiiwieD3ZQALK3zdvQ_c6VEQMZdh-8JMm2UEAn60pBgFAGu44cY3isNhU7-Amo1hadp7KL1xAm83aV2AvCpDyTmxBS6q-2tVdqOlp8F3ir-VvpEKt4yr7iceyw4EwumpsUink4ihRbuw9dQMxUalQi2VJsyArYdImzwhba5SET3U8qvX5qrTbEz3cDtCnA73py1mw10KZiGBoVwW_MnetvtweZERbIB1_7qO53Je74mz0ZBFFYtuLlz4-q4c_QyDpLbkD9JRarMfnMjuiJ_zDRfPcgJbpkodn2DUEALlt4U-yYMP5Us2yqY5EKqEEWn0bBSlvs1-w8sx6kjZhEVUxLo5q9-H5ZZ-KenA9bPavYIj41LBRAWCleb-2LwHlUqlqcGAgVPNJspmSSgnpPL79PNz1PsdHIX-iiWEZrF4_HXVW-JilZnCk5_uapgUBekMxGPZzWNfhE"
+# Dropbox App Credentials
+APP_KEY = "w6nrz3ghlfskn5i"  # Replace with your Dropbox App Key
+APP_SECRET = "uq94leubvg2xc23"  # Replace with your Dropbox App Secret
+REFRESH_TOKEN = "sl.CCcuic-FxPSYJgwmzuuBvhTvAMmm4RppC__vkceXVBQh0GvMT-Hm9ttKXQnRpC3f5IbX5oFQOHgDSUF6wJO5lBGQTHLcfU5d0PxMVguWhAgAzpp3f2zpQ8L-MKwrnX9W1R_5D7_Cb0kC-Jp5bbLuLUg"  # Replace with your Dropbox Refresh Token
+PROJECTS_FILE_PATH = "/Project_Data/projects_data_weekly.xlsx"
+HR_FILE_PATH = "/Project_Data/Human Resources.xlsx"
 
+# Function to Get Access Token
+def get_access_token():
+    """Fetch a new access token using the refresh token."""
+    url = "https://api.dropboxapi.com/oauth2/token"
+    data = {
+        "grant_type": "refresh_token",
+        "refresh_token": REFRESH_TOKEN,
+    }
+    auth = (APP_KEY, APP_SECRET)
+    response = requests.post(url, data=data, auth=auth)
+    if response.status_code == 200:
+        return response.json()["access_token"]
+    else:
+        st.error(f"Error refreshing Dropbox token: {response.json()}")
+        raise Exception(f"Token refresh failed: {response.text}")
+        
 # Dropbox Functions
 def download_from_dropbox(file_path):
     """Download a file from Dropbox."""
