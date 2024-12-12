@@ -327,7 +327,9 @@ def main():
                 budgeted_cost = updated_budgeted * cost_per_hour
                 spent_cost = updated_spent * cost_per_hour
                 remaining_cost = budgeted_cost - spent_cost
-        
+                
+             updated_rows = []  # Initialize here before appending
+            
                 updated_rows.append({
                     "Project ID": existing_allocation.get("Project ID", selected_project),
                     "Project Name": existing_allocation.get("Project Name", ""),
