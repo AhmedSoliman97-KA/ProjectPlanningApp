@@ -189,7 +189,7 @@ def main():
                             "Personnel": engineer,
                             "Week": week_label,
                             "Year": selected_year,
-                            "Month": ", ".join(selected_months)
+                            "Month": ", ".join(selected_months),
                             "Budgeted Hrs": budgeted_hours,
                             "Remaining Hrs": budgeted_hours,
                             "Cost/Hour": cost_per_hour,
