@@ -219,7 +219,6 @@ def main():
         st.subheader("Select a Project")
         selected_project = st.selectbox("Choose a Project", filtered_projects["Project Name"].unique())
         project_details = filtered_projects[filtered_projects["Project Name"] == selected_project]
-        ["Project Name"] == selected_project]
 
         # Step 3: Display Current Allocations for the Selected Project
         st.subheader("Current Allocations for Selected Project")
