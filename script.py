@@ -265,7 +265,10 @@ def main():
                             "Section": selected_section,
                             "Category": "N/A"
                         }])], ignore_index=True)
-        
+
+        # Initialize updated_rows
+        updated_rows = []  # Initialize here before appending
+
         # Update Allocations for Each Engineer
         for engineer in selected_engineers:
             engineer_details = project_details[project_details["Personnel"] == engineer]
@@ -327,9 +330,7 @@ def main():
                 budgeted_cost = updated_budgeted * cost_per_hour
                 spent_cost = updated_spent * cost_per_hour
                 remaining_cost = budgeted_cost - spent_cost
-                
-             updated_rows = []  # Initialize here before appending
-            
+                    
                 updated_rows.append({
                     "Project ID": existing_allocation.get("Project ID", selected_project),
                     "Project Name": existing_allocation.get("Project Name", ""),
