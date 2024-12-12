@@ -191,7 +191,7 @@ def main():
                             "Year": selected_year,
                             "Month": ", ".join(selected_months),
                             "Budgeted Hrs": budgeted_hours,
-                            "Remaining Hrs": budgeted_hours,
+                            "Remaining Hrs": budgeted_hours - spent_hours,
                             "Cost/Hour": cost_per_hour,
                             "Budgeted Cost": budgeted_cost,
                             "Remaining Cost": remaining_cost,
