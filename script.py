@@ -9,7 +9,6 @@ from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 ACCESS_TOKEN = "sl.u.AFY76MVKUHTIGBfqYRqzrPnV19H8Jly5Q-tt5U5r4S1GA9eEq4L_Kn32TGZIEbQjrgEzWWVdAsXyRdEfhOge_Z_K6_M3Z3_Sgr8a_PdXLM82FcXlGTEZoTPH4l9w5vyiIhgIkW0Tq2sE1_6_ajKdhlTeNir06bi_r3XcSR_w9A9AB_4i9CEjwmxgRf_w1zc_rN_d1VBRzhbUJn9yjAsut_J5r0I2RovfSWAFJo6RQcyInPygr2RJLbB0CJqqpQ4z09FHQdwtxtaSzhv68KiQWI8YaNMrcW642Pnu6iQm-oNRXzfXLaVjx6uca_H9Uxmcgx1v-J3_BXNJmjVRHCILAr1aRqtlkZlZd6Qz48924Q5i1vt_MY10gfejguPXKsy_omhQ-4W3FeYLXLNwWcv2cZpBtN0TRRhaLXmxpgfEACcGmpoZNWcrbgjF0wSfWag1vBl-p4NmcXneDhi93PLlLvDNPCN0rAazCiCfK710dwSE1Cz7KcdPW-frmu3CJQewcwL6-znetdFTVdbspL4pNKKktsU9DL0rAY-XVymvyTqpBRTD6Db3oCn3MVtIqxUQQPiNTjQ-T1BB5bls3DdS-ToWaYpQyDslzbYg5BBTcG2oVcCa7W4TbY9yc6KdbiiDyU3pxzuXXDE8mgNGwxauJQrdJt992Pb5stjMxKiY5BnHh6va-yleyZuxbkaldXiAqrwUkhJcwOxf7TE6iA-NIQAzsRleD4OIB8SDBDQfMeBtjXAeuG6I91XhyNgdGOYG8cuwBMSKXDrpqT8p1BIIY9zay0rbBEAOzPJBS4NLJxJL7VR12JpVugHLax3r6TzoQhSPuhvS6EMLQ9PWoKaWaN_tYlSj2wpZDO4jRj5nsIIu1KogQtvKwmVyEd9aIVYmnL95w9iOKKoe5XItbQOtLUwele8S_vmEBheVBSYI-ad9fEZBwCq4CJQ9wOyljRYshassdeBFnK7mx37C1Pr8Nc1sZTQzlEU2OGuP3R2ed3G1y9TL2jNm_K0uxAu4lNIzUg3NgF8Os8FfwFeEQ1DhBjzfeN8Qj4ANOx9VAHYHqFbINQNueg12G0g6rZUSGpCFkHS1g5qwfkJ_UXW32KCkDB0Zbw5VppSulisrwMkbz0HEy7c1cIcoJGG8ac-9cwNePtFc_q8vLdbbDyIr0ryusyYPfRHyQmPTyd6-WODowFqoivxC_1sEz87Xt4oEYRIemtdqEWrznsd_EiTvvWEWtqpmIgjK-2MAJl_tFh_x-6MoXYdplrbJFRVPvlWS_32R_4GOoEIncxJ8IYF3c1VtC7F-iOvSBKTDQPKlhLya_xa54bb6PvyqU4R1drmYWrGzpR0JZR39v-PIlOPlvMm0mM7Fn1ZvkVBOl9c0LXFyZP94fn8NYGE1hfubQHnIG0t_fudUCRvnhVBmyOqiy4HkG-EWnKyFvwoN5GArvtvsmn9wHfG6QjynggOHjJx_YS3h9FI"
 PROJECTS_FILE_PATH = "/Project_Data/projects_data_weekly.xlsx"
 HR_FILE_PATH = "/Project_Data/Human Resources.xlsx"
-
 # Dropbox Functions
 def download_from_dropbox(file_path):
     """Download a file from Dropbox."""
@@ -50,14 +49,15 @@ def ensure_dropbox_projects_file_exists(file_path):
         upload_to_dropbox(empty_df, file_path)
 
 # Generate Weeks for a Given Month
-def generate_weeks(year, month):
-    start_date = datetime(year, month, 1)
-    end_date = (start_date + timedelta(days=31)).replace(day=1)
+def generate_weeks(year, months):
     weeks = []
-    while start_date < end_date:
-        week_label = f"Week {start_date.isocalendar()[1]} ({start_date.strftime('%b')})"
-        weeks.append((week_label, start_date))
-        start_date += timedelta(days=7)
+    for month in months:
+        start_date = datetime(year, list(month_name).index(month), 1)
+        end_date = (start_date + timedelta(days=31)).replace(day=1)
+        while start_date < end_date:
+            week_label = start_date.strftime("%Y-%m-%d")
+            weeks.append((week_label, start_date))
+            start_date += timedelta(days=7)
     return weeks
 
 # Main Application
@@ -103,7 +103,7 @@ def main():
 
         # Year and month selection
         selected_year = st.selectbox("Year", range(datetime.now().year - 5, datetime.now().year + 6), index=5)
-selected_months = st.multiselect("Months", list(month_name)[1:], default=[datetime.now().strftime("%B")])
+        selected_months = st.multiselect("Months", list(month_name)[1:], default=[month_name[datetime.now().month]])
 
         # Engineer selection
         st.subheader("Select Engineers for Allocation")
@@ -119,17 +119,7 @@ selected_months = st.multiselect("Months", list(month_name)[1:], default=[dateti
             st.subheader("Allocate Weekly Hours")
 
             # Generate Weeks
-            allocations_template = pd.DataFrame(columns=["Month", "Week Start Date", "Budgeted Hours"])
-            for month in selected_months:
-                month_index = list(month_name).index(month)
-                weeks = generate_weeks(selected_year, month_index)
-                for week in weeks:
-                    allocations_template = allocations_template.append({
-                        "Month": month,
-                        "Week Start Date": week,
-                        "Budgeted Hours": 0
-                    }, ignore_index=True)
-
+            weeks = generate_weeks(selected_year, selected_months)
 
             for engineer in selected_engineers:
                 # Fetch engineer details from Human Resources file
@@ -182,6 +172,7 @@ selected_months = st.multiselect("Months", list(month_name)[1:], default=[dateti
             st.metric("Total Allocated Budget (in $)", f"${total_allocated_budget:,.2f}")
             st.metric("Approved Total Budget (in $)", f"${approved_budget:,.2f}")
             st.metric("Difference (Remaining/Over-Allocated)", f"${approved_budget - total_allocated_budget:,.2f}")
+            st.metric("Total Allocated Cost (in $)", f"${total_allocated_budget:,.2f}")
 
         # Submit Button
         if st.button("Submit Project"):
