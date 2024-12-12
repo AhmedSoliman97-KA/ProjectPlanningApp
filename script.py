@@ -129,7 +129,7 @@ def main():
             
                 # Generate weeks horizontally
                 col_list = st.columns(len(weeks))
-                week_labels = [week_label for week_label, _ in weeks]
+                week_labels = list(weeks.keys())
                 budgeted_hours_inputs = {}
             
                 for idx, (week_label, col) in enumerate(zip(week_labels, col_list)):
@@ -142,10 +142,15 @@ def main():
                         )
             
                 # Save allocation
-                for week_label, budgeted_hours in budgeted_hours_inputs.items():
-                    if budgeted_hours > 0:
-                        budgeted_cost = budgeted_hours * cost_per_hour
-                        remaining_cost = budgeted_cost
+                for week_label, start_date in weeks.items():
+                    with col:
+                        budgeted_hours_inputs[week_label] = st.number_input(
+                            f"Budgeted ({week_label})",
+                            min_value=0,
+                            step=1,
+                            key=f"{engineer}_{week_label}_budgeted"
+                        )
+
                         total_allocated_budget += budgeted_cost
             
                         allocations.append({
