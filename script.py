@@ -12,7 +12,8 @@ REFRESH_TOKEN = "sl.u.AFbLKe_s1qjfmL48cPaEOhqwX5FK-veyXBJJaxejYMPZgqgj7BXq_7kXOV
 PROJECTS_FILE_PATH = "/Project_Data/projects_data_weekly.xlsx"
 HR_FILE_PATH = "/Project_Data/Human Resources.xlsx"
 
-# Function to Get Access Token
+
+# Function to fetch Dropbox access token dynamically
 def get_access_token():
     """Fetch a new access token using the refresh token."""
     url = "https://api.dropboxapi.com/oauth2/token"
@@ -27,13 +28,13 @@ def get_access_token():
     else:
         st.error(f"Error refreshing Dropbox token: {response.json()}")
         raise Exception(f"Token refresh failed: {response.text}")
-        
+
 # Dropbox Functions
 def download_from_dropbox(file_path):
     """Download a file from Dropbox."""
     try:
-        access_token = get_access_token()  # Get a valid token
-        dbx = dropbox.Dropbox(access_token)  # Use the dynamic token
+        access_token = get_access_token()
+        dbx = dropbox.Dropbox(access_token)
         metadata, res = dbx.files_download(file_path)
         return pd.ExcelFile(res.content)
     except dropbox.exceptions.ApiError as e:
@@ -46,8 +47,8 @@ def download_from_dropbox(file_path):
 def upload_to_dropbox(df, dropbox_path):
     """Upload a DataFrame to Dropbox as an Excel file."""
     try:
-        access_token = get_access_token()  # Get a valid token
-        dbx = dropbox.Dropbox(access_token)  # Use the dynamic token
+        access_token = get_access_token()
+        dbx = dropbox.Dropbox(access_token)
         with pd.ExcelWriter("temp.xlsx", engine="openpyxl") as writer:
             df.to_excel(writer, index=False)
         with open("temp.xlsx", "rb") as f:
@@ -60,7 +61,7 @@ def upload_to_dropbox(df, dropbox_path):
 def ensure_dropbox_projects_file_exists(file_path):
     """Ensure the projects file exists in Dropbox, create if not."""
     try:
-        existing_file = download_from_dropbox(file_path)  # Ensure token is refreshed dynamically
+        existing_file = download_from_dropbox(file_path)
         if existing_file is None:
             st.warning(f"{file_path} not found in Dropbox. Creating a new file...")
             empty_df = pd.DataFrame(columns=[
@@ -72,6 +73,16 @@ def ensure_dropbox_projects_file_exists(file_path):
     except Exception as e:
         st.error(f"Error ensuring file exists: {e}")
 
+# Generate Weeks for a Given Month
+def generate_weeks(year, month):
+    start_date = datetime(year, month, 1)
+    end_date = (start_date + timedelta(days=31)).replace(day=1)
+    weeks = []
+    while start_date < end_date:
+        week_label = f"Week {start_date.isocalendar()[1]} ({start_date.strftime('%b')})"
+        weeks.append((week_label, start_date))
+        start_date += timedelta(days=7)
+    return weeks
 
 # Main Application
 def main():
@@ -114,64 +125,78 @@ def main():
         project_name = st.text_input("Project Name", help="Enter the name of the project.")
         approved_budget = st.number_input("Approved Total Budget (in $)", min_value=0, step=1)
 
-        # Engineer selection with dropdown filter
-        st.subheader("Filter Engineers by Section")
+        # Year and month selection
+        selected_year = st.selectbox("Year", range(datetime.now().year - 5, datetime.now().year + 6), index=5)
+        selected_month = st.selectbox("Month", list(month_name)[1:], index=datetime.now().month - 1)
+
+        # Engineer selection
+        st.subheader("Select Engineers for Allocation")
         selected_section = st.selectbox("Choose a Section", hr_sections)
         engineers_data = hr_excel.parse(sheet_name=selected_section)
         engineers = engineers_data["Name"].dropna().tolist()
-        filtered_engineers = st.multiselect("Select Engineers to Include", options=engineers)
+        selected_engineers = st.multiselect("Choose Engineers", options=engineers, help="Select engineers to allocate hours.")
 
-        # Tabular input for allocations
-        if filtered_engineers:
+        allocations = []
+        total_allocated_budget = 0
+
+        if selected_engineers:
             st.subheader("Allocate Weekly Hours")
-            allocations_template = pd.DataFrame(columns=[
-                "Month", "Week", "Engineer", "Budgeted Hours"
-            ])
-            allocations_template = pd.concat(
-                [allocations_template] +
-                [pd.DataFrame({"Engineer": [engineer]}) for engineer in filtered_engineers],
-                ignore_index=True
-            )
 
-            gb = GridOptionsBuilder.from_dataframe(allocations_template)
-            gb.configure_default_column(editable=True)
-            grid_options = gb.build()
-            response = AgGrid(allocations_template, gridOptions=grid_options, update_mode='MANUAL')
-            updated_data = pd.DataFrame(response['data'])
+            # Generate Weeks
+            weeks = generate_weeks(selected_year, list(month_name).index(selected_month))
 
-            # Calculate total allocated cost
-            updated_data["Cost/Hour"] = updated_data["Engineer"].map(
-                lambda eng: engineers_data.loc[engineers_data["Name"] == eng, "Cost/Hour"].values[0]
-                if not engineers_data[engineers_data["Name"] == eng].empty else 0
-            )
-            updated_data["Budgeted Cost"] = updated_data["Budgeted Hours"] * updated_data["Cost/Hour"]
-            total_allocated_cost = updated_data["Budgeted Cost"].sum()
+            for engineer in selected_engineers:
+                engineer_details = engineers_data[engineers_data["Name"] == engineer].iloc[0]
+                cost_per_hour = pd.to_numeric(engineer_details.get("Cost/Hour", 0), errors='coerce')
+                cost_per_hour = cost_per_hour if not pd.isna(cost_per_hour) else 0
 
-            # Display allocation summary
+                st.markdown(f"### Engineer: {engineer}")
+                for week_label, _ in weeks:
+                    budgeted_hours = st.number_input(
+                        f"Budgeted Hours ({week_label}) for {engineer}",
+                        min_value=0,
+                        step=1,
+                        key=f"{engineer}_{week_label}"
+                    )
+                    if budgeted_hours > 0:
+                        spent_hours = 0
+                        remaining_hours = budgeted_hours - spent_hours
+                        budgeted_cost = budgeted_hours * cost_per_hour
+                        remaining_cost = remaining_hours * cost_per_hour
+
+                        total_allocated_budget += budgeted_cost
+
+                        allocations.append({
+                            "Project ID": project_id,
+                            "Project Name": project_name,
+                            "Personnel": engineer,
+                            "Week": week_label,
+                            "Year": selected_year,
+                            "Month": selected_month,
+                            "Budgeted Hrs": budgeted_hours,
+                            "Spent Hrs": spent_hours,
+                            "Remaining Hrs": remaining_hours,
+                            "Cost/Hour": cost_per_hour,
+                            "Budgeted Cost": budgeted_cost,
+                            "Remaining Cost": remaining_cost,
+                            "Section": selected_section,
+                            "Category": engineer_details.get("Category", "N/A")
+                        })
+
+        if allocations:
             st.subheader("Summary of Allocations")
-            st.dataframe(updated_data)
+            allocation_df = pd.DataFrame(allocations)
+            st.dataframe(allocation_df)
+            st.metric("Total Allocated Budget (in $)", f"${total_allocated_budget:,.2f}")
 
-            # Display totals
-            st.metric("Total Allocated Budget (in $)", f"${total_allocated_cost:,.2f}")
-            st.metric("Approved Total Budget (in $)", f"${approved_budget:,.2f}")
-            st.metric("Remaining Budget (in $)", f"${approved_budget - total_allocated_cost:,.2f}")
-
-            # Submit button
-            if st.button("Submit Project"):
-                # Save to projects data and upload to Dropbox
-                updated_data["Composite Key"] = (
-                    project_id + "_" + project_name + "_" + updated_data["Engineer"] + "_" + updated_data["Week"]
-                )
-                projects_data["Composite Key"] = (
-                    projects_data["Project ID"] + "_" +
-                    projects_data["Project Name"] + "_" +
-                    projects_data["Personnel"] + "_" +
-                    projects_data["Week"]
-                )
-                updated_projects = projects_data[~projects_data["Composite Key"].isin(updated_data["Composite Key"])]
-                final_data = pd.concat([updated_projects, updated_data], ignore_index=True)
-                final_data.drop(columns=["Composite Key"], inplace=True)
-                upload_to_dropbox(final_data, PROJECTS_FILE_PATH)
+        if st.button("Submit Project"):
+            if not project_id.strip() or not project_name.strip():
+                st.error("Project ID and Name cannot be empty.")
+            elif not allocations:
+                st.error("No allocations made.")
+            else:
+                new_data = pd.DataFrame(allocations)
+                upload_to_dropbox(new_data, PROJECTS_FILE_PATH)
                 st.success("Project submitted successfully!")
 
 if __name__ == "__main__":
