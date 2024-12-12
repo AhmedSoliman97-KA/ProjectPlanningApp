@@ -274,6 +274,11 @@ def main():
         
             # Generate weeks horizontally
             weeks = engineer_details["Week"].unique()
+        
+            if len(weeks) == 0:
+                st.warning(f"No weeks available for engineer {engineer}.")
+                continue  # Skip this engineer if no weeks are available
+        
             col_list_budgeted = st.columns(len(weeks))
             col_list_spent = st.columns(len(weeks))
         
@@ -336,6 +341,7 @@ def main():
                     "Section": existing_allocation["Section"],
                     "Category": existing_allocation["Category"]
                 })
+
 
         # Metrics for Updated Allocations
         st.subheader("Updated Allocations for Selected Project")
