@@ -50,15 +50,16 @@ def ensure_dropbox_projects_file_exists(file_path):
 
 # Generate Weeks for a Given Month
 def generate_weeks(year, months):
-    weeks = []
+    weeks = {}
     for month in months:
         start_date = datetime(year, list(month_name).index(month), 1)
         end_date = (start_date + timedelta(days=31)).replace(day=1)
         while start_date < end_date:
             week_label = start_date.strftime("%Y-%m-%d")
-            weeks.append((week_label, start_date))
+            weeks[week_label] = start_date
             start_date += timedelta(days=7)
     return weeks
+
 
 # Main Application
 def main():
@@ -126,42 +127,43 @@ def main():
                 cost_per_hour = pd.to_numeric(engineer_details.get("Cost/Hour", 0), errors="coerce")
                 st.markdown(f"### Engineer: {engineer}")
             
-                for week_label, _ in weeks:
-                    col1, col2, col3, col4 = st.columns(4)
-                    with col1:
-                        budgeted_hours = st.number_input(
-                            f"Budgeted Hours ({week_label})",
+                # Generate weeks horizontally
+                col_list = st.columns(len(weeks))
+                week_labels = [week_label for week_label, _ in weeks]
+                budgeted_hours_inputs = {}
+            
+                for idx, (week_label, col) in enumerate(zip(week_labels, col_list)):
+                    with col:
+                        budgeted_hours_inputs[week_label] = st.number_input(
+                            f"Budgeted ({week_label})",
                             min_value=0,
                             step=1,
                             key=f"{engineer}_{week_label}_budgeted"
                         )
-                    with col2:
-                        spent_hours = st.number_input(
-                            f"Spent Hours ({week_label})",
-                            min_value=0,
-                            step=1,
-                            key=f"{engineer}_{week_label}_spent"
-                        )
-                    remaining_hours = budgeted_hours - spent_hours
-                    budgeted_cost = budgeted_hours * cost_per_hour
-                    remaining_cost = remaining_hours * cost_per_hour
             
-                    allocations.append({
-                        "Project ID": project_id,
-                        "Project Name": project_name,
-                        "Personnel": engineer,
-                        "Week": week_label,
-                        "Year": selected_year,
-                        "Month": ", ".join(selected_months),  # Concatenate selected months as a single string
-                        "Budgeted Hrs": budgeted_hours,
-                        "Spent Hrs": spent_hours,
-                        "Remaining Hrs": remaining_hours,
-                        "Cost/Hour": cost_per_hour,
-                        "Budgeted Cost": budgeted_cost,
-                        "Remaining Cost": remaining_cost,
-                        "Section": engineer_details.get("Section", "Unknown"),
-                        "Category": engineer_details.get("Category", "N/A")
-                    })
+                # Save allocation
+                for week_label, budgeted_hours in budgeted_hours_inputs.items():
+                    if budgeted_hours > 0:
+                        budgeted_cost = budgeted_hours * cost_per_hour
+                        remaining_cost = budgeted_cost
+                        total_allocated_budget += budgeted_cost
+            
+                        allocations.append({
+                            "Project ID": project_id,
+                            "Project Name": project_name,
+                            "Personnel": engineer,
+                            "Week": week_label,
+                            "Year": selected_year,
+                            "Month": selected_month,
+                            "Budgeted Hrs": budgeted_hours,
+                            "Spent Hrs": 0,
+                            "Remaining Hrs": budgeted_hours,
+                            "Cost/Hour": cost_per_hour,
+                            "Budgeted Cost": budgeted_cost,
+                            "Remaining Cost": remaining_cost,
+                            "Section": engineer_details.get("Section", "Unknown"),
+                            "Category": engineer_details.get("Category", "N/A")
+                        })
 
 
         # Display Allocation Summary and Comparison
@@ -273,29 +275,31 @@ def main():
     
         for engineer in selected_engineers:
             engineer_details = project_details[project_details["Personnel"] == engineer]
-            for week in engineer_details["Week"].unique():
+            st.markdown(f"## Engineer: {engineer}")
+        
+            # Generate weeks horizontally
+            weeks = engineer_details["Week"].unique()
+            col_list = st.columns(len(weeks))
+            updated_budgeted_inputs = {}
+        
+            for idx, (week, col) in enumerate(zip(weeks, col_list)):
                 existing_allocation = engineer_details[engineer_details["Week"] == week].iloc[0]
         
-                col1, col2, col3, col4 = st.columns(4)
-                with col1:
-                    updated_budgeted = st.number_input(
-                        f"Budgeted Hours ({week})",
+                with col:
+                    updated_budgeted_inputs[week] = st.number_input(
+                        f"{week}",
                         min_value=0,
                         value=int(existing_allocation.get("Budgeted Hrs", 0)),
                         step=1,
                         key=f"{engineer}_{week}_updated_budgeted"
                     )
-                with col2:
-                    updated_spent = st.number_input(
-                        f"Spent Hours ({week})",
-                        min_value=0,
-                        value=int(existing_allocation.get("Spent Hrs", 0)),
-                        step=1,
-                        key=f"{engineer}_{week}_updated_spent"
-                    )
-                remaining_hours = updated_budgeted - updated_spent
-                budgeted_cost = updated_budgeted * existing_allocation["Cost/Hour"]
-                remaining_cost = budgeted_cost - updated_spent * existing_allocation["Cost/Hour"]
+        
+            # Save updated rows
+            for week, updated_budgeted in updated_budgeted_inputs.items():
+                existing_allocation = engineer_details[engineer_details["Week"] == week].iloc[0]
+                cost_per_hour = existing_allocation["Cost/Hour"]
+                budgeted_cost = updated_budgeted * cost_per_hour
+                remaining_cost = budgeted_cost - existing_allocation["Spent Hrs"] * cost_per_hour
         
                 updated_rows.append({
                     "Project ID": existing_allocation["Project ID"],
@@ -305,14 +309,15 @@ def main():
                     "Year": existing_allocation["Year"],
                     "Month": existing_allocation["Month"],
                     "Budgeted Hrs": updated_budgeted,
-                    "Spent Hrs": updated_spent,
-                    "Remaining Hrs": remaining_hours,
-                    "Cost/Hour": existing_allocation["Cost/Hour"],
+                    "Spent Hrs": existing_allocation["Spent Hrs"],
+                    "Remaining Hrs": updated_budgeted - existing_allocation["Spent Hrs"],
+                    "Cost/Hour": cost_per_hour,
                     "Budgeted Cost": budgeted_cost,
                     "Remaining Cost": remaining_cost,
                     "Section": existing_allocation["Section"],
                     "Category": existing_allocation["Category"]
                 })
+
 
     
         # Metrics for Updated Allocations
