@@ -271,33 +271,55 @@ def main():
         for engineer in selected_engineers:
             engineer_details = project_details[project_details["Personnel"] == engineer]
             st.markdown(f"## Engineer: {engineer}")
-
+        
             # Generate weeks horizontally
             weeks = engineer_details["Week"].unique()
-            col_list = st.columns(len(weeks))
+            col_list_budgeted = st.columns(len(weeks))
+            col_list_spent = st.columns(len(weeks))
+        
             updated_budgeted_inputs = {}
-
-            for idx, (week, col) in enumerate(zip(weeks, col_list)):
+            updated_spent_inputs = {}
+        
+            st.markdown("### Budgeted Hours")
+            for idx, (week, col) in enumerate(zip(weeks, col_list_budgeted)):
                 existing_allocation = engineer_details[engineer_details["Week"] == week].iloc[0]
-
+        
                 with col:
-                    # Unique widget key using section, engineer, and week
-                    widget_key = f"updated_budgeted_{selected_section}_{engineer}_{week}"
+                    # Unique widget key using section, engineer, and week for budgeted hours
+                    widget_key_budgeted = f"updated_budgeted_{selected_section}_{engineer}_{week}"
                     updated_budgeted_inputs[week] = st.number_input(
                         f"{week}",
                         min_value=0,
                         value=int(existing_allocation["Budgeted Hrs"]),
                         step=1,
-                        key=widget_key
+                        key=widget_key_budgeted
                     )
-
+        
+            st.markdown("### Spent Hours")
+            for idx, (week, col) in enumerate(zip(weeks, col_list_spent)):
+                existing_allocation = engineer_details[engineer_details["Week"] == week].iloc[0]
+        
+                with col:
+                    # Unique widget key using section, engineer, and week for spent hours
+                    widget_key_spent = f"updated_spent_{selected_section}_{engineer}_{week}"
+                    updated_spent_inputs[week] = st.number_input(
+                        f"{week}",
+                        min_value=0,
+                        value=int(existing_allocation["Spent Hrs"]),
+                        step=1,
+                        key=widget_key_spent
+                    )
+        
             # Save updated rows
-            for week, updated_budgeted in updated_budgeted_inputs.items():
+            for week in weeks:
+                updated_budgeted = updated_budgeted_inputs[week]
+                updated_spent = updated_spent_inputs[week]
                 existing_allocation = engineer_details[engineer_details["Week"] == week].iloc[0]
                 cost_per_hour = existing_allocation["Cost/Hour"]
                 budgeted_cost = updated_budgeted * cost_per_hour
-                remaining_cost = budgeted_cost - (existing_allocation["Spent Hrs"] * cost_per_hour)
-
+                spent_cost = updated_spent * cost_per_hour
+                remaining_cost = budgeted_cost - spent_cost
+        
                 updated_rows.append({
                     "Project ID": existing_allocation["Project ID"],
                     "Project Name": existing_allocation["Project Name"],
@@ -306,8 +328,8 @@ def main():
                     "Year": existing_allocation["Year"],
                     "Month": existing_allocation["Month"],
                     "Budgeted Hrs": updated_budgeted,
-                    "Spent Hrs": existing_allocation["Spent Hrs"],
-                    "Remaining Hrs": updated_budgeted - existing_allocation["Spent Hrs"],
+                    "Spent Hrs": updated_spent,
+                    "Remaining Hrs": updated_budgeted - updated_spent,
                     "Cost/Hour": cost_per_hour,
                     "Budgeted Cost": budgeted_cost,
                     "Remaining Cost": remaining_cost,
