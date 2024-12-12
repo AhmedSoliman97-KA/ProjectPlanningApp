@@ -152,7 +152,7 @@ def main():
                         "Personnel": engineer,
                         "Week": week_label,
                         "Year": selected_year,
-                        "Month": selected_month,
+                        "Month": ", ".join(selected_months),  # Concatenate selected months as a single string
                         "Budgeted Hrs": budgeted_hours,
                         "Spent Hrs": spent_hours,
                         "Remaining Hrs": remaining_hours,
