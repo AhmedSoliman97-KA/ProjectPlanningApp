@@ -138,16 +138,52 @@ def main():
         st.metric("Approved Total Budget", approved_budget)
         st.dataframe(updated_data)
 
-        if st.button("Submit Project"):
-            if not project_id.strip() or not project_name.strip():
-                st.error("Project ID and Project Name cannot be empty.")
-            else:
-                new_data = updated_data
-                new_data["Project ID"] = project_id
-                new_data["Project Name"] = project_name
-                new_data["Section"] = selected_section
-                upload_to_dropbox(new_data, PROJECTS_FILE_PATH)
-                st.success("Project submitted successfully!")
+# Update the submit logic to ensure the output matches MS5 format
+if st.button("Submit Project"):
+    if not project_id.strip():
+        st.error("Project ID cannot be empty. Please enter a valid Project ID.")
+    elif not project_name.strip():
+        st.error("Project Name cannot be empty. Please enter a valid Project Name.")
+    elif updated_data.empty:
+        st.error("No allocations have been made. Please allocate hours before submitting.")
+    else:
+        # Add section and category to the final output from Human Resources data
+        updated_data["Section"] = selected_section
+        updated_data = updated_data.merge(
+            engineers_data[["Name", "Category"]].rename(columns={"Name": "Personnel"}),
+            left_on="Engineer", right_on="Personnel", how="left"
+        )
+        updated_data["Category"] = updated_data["Category"].fillna("N/A")
+
+        # Generate Composite Key to ensure unique entries
+        updated_data["Composite Key"] = (
+            project_id + "_" +
+            project_name + "_" +
+            updated_data["Engineer"] + "_" +
+            updated_data["Week"]
+        )
+        projects_data["Composite Key"] = (
+            projects_data["Project ID"] + "_" +
+            projects_data["Project Name"] + "_" +
+            projects_data["Personnel"] + "_" +
+            projects_data["Week"]
+        )
+        
+        # Remove old entries for this project before appending new data
+        updated_projects = projects_data[~projects_data["Composite Key"].isin(updated_data["Composite Key"])]
+        final_data = pd.concat([updated_projects, updated_data], ignore_index=True)
+        final_data.drop(columns=["Composite Key"], inplace=True)
+
+        # Ensure output columns match MS5 structure
+        final_data = final_data[[
+            "Project ID", "Project Name", "Personnel", "Week", "Year", "Month",
+            "Budgeted Hrs", "Spent Hrs", "Remaining Hrs", "Cost/Hour", "Budgeted Cost",
+            "Remaining Cost", "Section", "Category"
+        ]]
+
+        # Upload updated data back to Dropbox
+        upload_to_dropbox(final_data, PROJECTS_FILE_PATH)
+        st.success("Project submitted successfully!")
 
     # Update Existing Project
     if action == "Update Existing Project":
@@ -175,9 +211,53 @@ def main():
         response = AgGrid(project_details, gridOptions=grid_options, update_mode=GridUpdateMode.MANUAL)
         updated_project_data = pd.DataFrame(response['data'])
 
-        if st.button("Save Updates"):
-            upload_to_dropbox(updated_project_data, PROJECTS_FILE_PATH)
-            st.success("Project updates saved successfully!")
+# Update the submit logic to ensure the output matches MS5 format
+if st.button("Submit Project"):
+    if not project_id.strip():
+        st.error("Project ID cannot be empty. Please enter a valid Project ID.")
+    elif not project_name.strip():
+        st.error("Project Name cannot be empty. Please enter a valid Project Name.")
+    elif updated_data.empty:
+        st.error("No allocations have been made. Please allocate hours before submitting.")
+    else:
+        # Add section and category to the final output from Human Resources data
+        updated_data["Section"] = selected_section
+        updated_data = updated_data.merge(
+            engineers_data[["Name", "Category"]].rename(columns={"Name": "Personnel"}),
+            left_on="Engineer", right_on="Personnel", how="left"
+        )
+        updated_data["Category"] = updated_data["Category"].fillna("N/A")
+
+        # Generate Composite Key to ensure unique entries
+        updated_data["Composite Key"] = (
+            project_id + "_" +
+            project_name + "_" +
+            updated_data["Engineer"] + "_" +
+            updated_data["Week"]
+        )
+        projects_data["Composite Key"] = (
+            projects_data["Project ID"] + "_" +
+            projects_data["Project Name"] + "_" +
+            projects_data["Personnel"] + "_" +
+            projects_data["Week"]
+        )
+        
+        # Remove old entries for this project before appending new data
+        updated_projects = projects_data[~projects_data["Composite Key"].isin(updated_data["Composite Key"])]
+        final_data = pd.concat([updated_projects, updated_data], ignore_index=True)
+        final_data.drop(columns=["Composite Key"], inplace=True)
+
+        # Ensure output columns match MS5 structure
+        final_data = final_data[[
+            "Project ID", "Project Name", "Personnel", "Week", "Year", "Month",
+            "Budgeted Hrs", "Spent Hrs", "Remaining Hrs", "Cost/Hour", "Budgeted Cost",
+            "Remaining Cost", "Section", "Category"
+        ]]
+
+        # Upload updated data back to Dropbox
+        upload_to_dropbox(final_data, PROJECTS_FILE_PATH)
+        st.success("Project submitted successfully!")
+
 
 if __name__ == "__main__":
     main()
