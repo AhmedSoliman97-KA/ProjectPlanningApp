@@ -126,15 +126,15 @@ def main():
                 engineer_details = engineers_data[engineers_data["Name"] == engineer].iloc[0]
                 cost_per_hour = pd.to_numeric(engineer_details.get("Cost/Hour", 0), errors="coerce")
                 st.markdown(f"### Engineer: {engineer}")
-
-                # Create columns for weeks
+            
+                # Generate weeks horizontally
                 col_list = st.columns(len(weeks))
+                week_labels = list(weeks.keys())
                 budgeted_hours_inputs = {}
-
-                for idx, (week_label, col) in enumerate(zip(weeks.keys(), col_list)):
+            
+                for idx, (week_label, col) in enumerate(zip(week_labels, col_list)):
                     with col:
-                        # Unique widget key using section, engineer, and week
-                        widget_key = f"budgeted_{selected_section}_{engineer}_{week_label}"
+                        widget_key = f"budgeted_{engineer}_{week_label}"
                         budgeted_hours_inputs[week_label] = st.number_input(
                             f"{week_label}",
                             min_value=0,
@@ -142,7 +142,7 @@ def main():
                             key=widget_key
                         )
                         budgeted_cost = budgeted_hours_inputs[week_label] * cost_per_hour
-
+                
                         # Append allocation data
                         if budgeted_hours_inputs[week_label] > 0:
                             allocations.append({
@@ -200,9 +200,9 @@ def main():
                 upload_to_dropbox(updated_data, PROJECTS_FILE_PATH)
                 st.success("Project submitted successfully!")
 
-    # Update Existing Project
     if action == "Update Existing Project":
         st.subheader("Update an Existing Project")
+        updated_rows = []
 
         # Step 1: Section Selection
         st.subheader("Select Section")
@@ -244,146 +244,52 @@ def main():
         if "Add New Engineer" in selected_engineers:
             st.subheader("Add New Engineer")
             new_engineers = st.multiselect("Choose New Engineers", options=hr_excel.parse(sheet_name=selected_section)["Name"].dropna().tolist())
-        
+
             for new_engineer in new_engineers:
                 if new_engineer not in project_details["Personnel"].values:
-                    # Create default allocations for new engineers
-                    for week in generate_weeks(selected_year, selected_months):
-                        project_details = pd.concat([project_details, pd.DataFrame([{
-                            "Project ID": selected_project,
-                            "Project Name": project_details.iloc[0]["Project Name"] if not project_details.empty else "",
-                            "Personnel": new_engineer,
-                            "Week": week,
-                            "Year": selected_year,
-                            "Month": ", ".join(selected_months),
-                            "Budgeted Hrs": 0,
-                            "Spent Hrs": 0,
-                            "Remaining Hrs": 0,
-                            "Cost/Hour": 0,
-                            "Budgeted Cost": 0,
-                            "Remaining Cost": 0,
-                            "Section": selected_section,
-                            "Category": "N/A"
-                        }])], ignore_index=True)
-      
-        # Define selected_year with a default value
-        selected_year = datetime.now().year  # Default year
-        # Logic for fetching/setting `selected_year
-       
-        # Initialize updated_rows
-        updated_rows = []  # Initialize here before appending
-
-        # Update Allocations for Each Engineer
-        for engineer in selected_engineers:
-            engineer_details = project_details[project_details["Personnel"] == engineer]
-            st.markdown(f"## Engineer: {engineer}")
-        
-            # Generate weeks horizontally
-            if "Add New Engineer" not in engineer:
-                weeks = engineer_details["Week"].unique()
-            else:
-                # Generate placeholder weeks for new engineers
-                weeks = list(generate_weeks(selected_year, selected_months).keys())
-        
-            if len(weeks) == 0:
-                st.warning(f"No weeks available for engineer {engineer}.")
-                continue
-        
-            col_list_budgeted = st.columns(len(weeks))
-            col_list_spent = st.columns(len(weeks))
-        
-            updated_budgeted_inputs = {}
-            updated_spent_inputs = {}
-        
-            st.markdown("### Budgeted Hours")
-            for idx, (week, col) in enumerate(zip(weeks, col_list_budgeted)):
-                existing_allocation = engineer_details[engineer_details["Week"] == week].iloc[0] if not engineer_details.empty else {}
-        
-                with col:
-                    # Unique widget key using section, engineer, and week for budgeted hours
-                    widget_key_budgeted = f"updated_budgeted_{selected_section}_{engineer}_{week}"
-                    updated_budgeted_inputs[week] = st.number_input(
-                        f"{week}",
-                        min_value=0,
-                        value=int(existing_allocation.get("Budgeted Hrs", 0)),
-                        step=1,
-                        key=widget_key_budgeted
-                    )
-        
-            st.markdown("### Spent Hours")
-            for idx, (week, col) in enumerate(zip(weeks, col_list_spent)):
-                existing_allocation = engineer_details[engineer_details["Week"] == week].iloc[0] if not engineer_details.empty else {}
-        
-                with col:
-                    # Unique widget key using section, engineer, and week for spent hours
-                    widget_key_spent = f"updated_spent_{selected_section}_{engineer}_{week}"
-                    updated_spent_inputs[week] = st.number_input(
-                        f"{week}",
-                        min_value=0,
-                        value=int(existing_allocation.get("Spent Hrs", 0)),
-                        step=1,
-                        key=widget_key_spent
-                    )
-        
-            # Save updated rows
-            for week in weeks:
-                updated_budgeted = updated_budgeted_inputs[week]
-                updated_spent = updated_spent_inputs[week]
-                existing_allocation = engineer_details[engineer_details["Week"] == week].iloc[0] if not engineer_details.empty else {}
-                cost_per_hour = existing_allocation.get("Cost/Hour", 0)
-                budgeted_cost = updated_budgeted * cost_per_hour
-                spent_cost = updated_spent * cost_per_hour
-                remaining_cost = budgeted_cost - spent_cost
-                    
-                # Define default values for selected_months if not already selected
-                selected_months = [month_name[datetime.now().month]]  # Default to current month
-                
-                # Existing logic for updating rows
-                updated_rows.append({
-                    "Project ID": existing_allocation.get("Project ID", selected_project),
-                    "Project Name": existing_allocation.get("Project Name", ""),
-                    "Personnel": engineer,
-                    "Week": week,
-                    "Year": existing_allocation.get("Year", selected_year),
-                    "Month": existing_allocation.get("Month", ", ".join(selected_months)),  # Use default `selected_months`
-                    "Budgeted Hrs": updated_budgeted,
-                    "Spent Hrs": updated_spent,
-                    "Remaining Hrs": updated_budgeted - updated_spent,
-                    "Cost/Hour": cost_per_hour,
-                    "Budgeted Cost": budgeted_cost,
-                    "Remaining Cost": remaining_cost,
-                    "Section": selected_section,
-                    "Category": existing_allocation.get("Category", "N/A")
-                })
+                    project_details = pd.concat([project_details, pd.DataFrame([{
+                        "Project ID": project_details.iloc[0]["Project ID"],
+                        "Project Name": project_details.iloc[0]["Project Name"],
+                        "Personnel": new_engineer,
+                        "Week": None,
+                        "Year": None,
+                        "Month": None,
+                        "Budgeted Hrs": 0,
+                        "Spent Hrs": 0,
+                        "Remaining Hrs": 0,
+                        "Cost/Hour": 0,
+                        "Budgeted Cost": 0,
+                        "Remaining Cost": 0,
+                        "Section": selected_section,
+                        "Category": None
+                    }])])
 
         # Step 5: Update Allocations for Each Selected Engineer
         st.subheader("Update Allocations")
-        updated_rows = []
-        
+
         for engineer in selected_engineers:
             engineer_details = project_details[project_details["Personnel"] == engineer]
             st.markdown(f"## Engineer: {engineer}")
-        
+
             # Generate weeks horizontally
             weeks = engineer_details["Week"].unique()
-        
+
             if len(weeks) == 0:
                 st.warning(f"No weeks available for engineer {engineer}.")
                 continue  # Skip this engineer if no weeks are available
-        
-            # Create columns for Budgeted and Spent Hours
+
             col_list_budgeted = st.columns(len(weeks))
             col_list_spent = st.columns(len(weeks))
-        
+
             updated_budgeted_inputs = {}
             updated_spent_inputs = {}
-        
-            # Process Budgeted Hours
+
             st.markdown("### Budgeted Hours")
             for idx, (week, col) in enumerate(zip(weeks, col_list_budgeted)):
                 existing_allocation = engineer_details[engineer_details["Week"] == week].iloc[0]
-        
+
                 with col:
+                    # Unique widget key using section, engineer, and week for budgeted hours
                     widget_key_budgeted = f"updated_budgeted_{selected_section}_{engineer}_{week}"
                     updated_budgeted_inputs[week] = st.number_input(
                         f"Budgeted Hours ({week})",
@@ -392,13 +298,13 @@ def main():
                         step=1,
                         key=widget_key_budgeted
                     )
-        
-            # Process Spent Hours
+
             st.markdown("### Spent Hours")
             for idx, (week, col) in enumerate(zip(weeks, col_list_spent)):
                 existing_allocation = engineer_details[engineer_details["Week"] == week].iloc[0]
-        
+
                 with col:
+                    # Unique widget key using section, engineer, and week for spent hours
                     widget_key_spent = f"updated_spent_{selected_section}_{engineer}_{week}"
                     updated_spent_inputs[week] = st.number_input(
                         f"Spent Hours ({week})",
@@ -407,20 +313,21 @@ def main():
                         step=1,
                         key=widget_key_spent
                     )
-        
+
             # Save updated rows
             for week in weeks:
-                updated_budgeted = updated_budgeted_inputs[week]
-                updated_spent = updated_spent_inputs[week]
-                existing_allocation = engineer_details[engineer_details["Week"] == week].iloc[0]
+                updated_budgeted = updated_budgeted_inputs.get(week, 0)
+                updated_spent = updated_spent_inputs.get(week, 0)
+                existing_allocation = engineer_details[engineer_details["Week"] == week].iloc[0] if not engineer_details.empty else {}
                 cost_per_hour = existing_allocation.get("Cost/Hour", 0)
                 budgeted_cost = updated_budgeted * cost_per_hour
                 spent_cost = updated_spent * cost_per_hour
                 remaining_cost = budgeted_cost - spent_cost
-        
-                # Use default `selected_months` if undefined
-                selected_months = selected_months if "selected_months" in locals() else [month_name[datetime.now().month]]
-        
+
+                # Define default values for selected_months if not already selected
+                selected_months = [month_name[datetime.now().month]]  # Default to current month
+
+                # Existing logic for updating rows
                 updated_rows.append({
                     "Project ID": existing_allocation.get("Project ID", selected_project),
                     "Project Name": existing_allocation.get("Project Name", ""),
@@ -437,7 +344,6 @@ def main():
                     "Section": selected_section,
                     "Category": existing_allocation.get("Category", "N/A")
                 })
-
 
         # Metrics for Updated Allocations
         st.subheader("Updated Allocations for Selected Project")
