@@ -48,17 +48,44 @@ def ensure_dropbox_projects_file_exists(file_path):
         ])
         upload_to_dropbox(empty_df, file_path)
 
-# Generate Weeks for a Given Month
-def generate_weeks(year, months):
-    weeks = {}
-    for month in months:
-        start_date = datetime(year, list(month_name).index(month), 1)
-        end_date = (start_date + timedelta(days=31)).replace(day=1)
-        while start_date < end_date:
-            week_label = start_date.strftime("%Y-%m-%d")
-            weeks[week_label] = start_date
-            start_date += timedelta(days=7)
-    return weeks
+for engineer in selected_engineers:
+    engineer_details = engineers_data[engineers_data["Name"] == engineer].iloc[0]
+    cost_per_hour = pd.to_numeric(engineer_details.get("Cost/Hour", 0), errors="coerce")
+    st.markdown(f"### Engineer: {engineer}")
+
+    # Create columns for weeks
+    col_list = st.columns(len(weeks))
+    budgeted_hours_inputs = {}
+
+    for idx, (week_label, col) in enumerate(zip(weeks.keys(), col_list)):
+        with col:
+            # Unique key using engineer and week
+            widget_key = f"budgeted_{engineer}_{week_label}"
+            budgeted_hours_inputs[week_label] = st.number_input(
+                f"{week_label}",
+                min_value=0,
+                step=1,
+                key=widget_key
+            )
+            budgeted_cost = budgeted_hours_inputs[week_label] * cost_per_hour
+
+            # Append allocation data
+            if budgeted_hours_inputs[week_label] > 0:
+                allocations.append({
+                    "Project ID": project_id,
+                    "Project Name": project_name,
+                    "Personnel": engineer,
+                    "Week": week_label,
+                    "Year": selected_year,
+                    "Month": selected_month,
+                    "Budgeted Hrs": budgeted_hours_inputs[week_label],
+                    "Remaining Hrs": budgeted_hours_inputs[week_label],
+                    "Cost/Hour": cost_per_hour,
+                    "Budgeted Cost": budgeted_cost,
+                    "Remaining Cost": budgeted_cost,
+                    "Section": engineer_details.get("Section", "Unknown"),
+                    "Category": engineer_details.get("Category", "N/A")
+                })
 
 
 # Main Application
