@@ -38,22 +38,53 @@ def upload_to_dropbox(dfs, dropbox_path):
         raise
 
 def ensure_dropbox_projects_file_exists(file_path):
-    """Ensure the projects file exists in Dropbox, create if not."""
+    """Ensure the projects file exists in Dropbox, create or fix if not."""
     existing_file = download_from_dropbox(file_path)
+    writer_needed = False
+
     if existing_file is None:
         st.warning(f"{file_path} not found in Dropbox. Creating a new file...")
-        with pd.ExcelWriter("temp.xlsx", engine="openpyxl") as writer:
-            pd.DataFrame(columns=[
+        writer_needed = True
+        projects_data = pd.DataFrame(columns=[
+            "Project ID", "Project Name", "Personnel", "Week", "Year", "Month",
+            "Budgeted Hrs", "Spent Hrs", "Remaining Hrs", "Cost/Hour", "Budgeted Cost",
+            "Remaining Cost", "Section", "Category"
+        ])
+        approved_budgets_data = pd.DataFrame(columns=["Project ID", "Project Name", "Approved Total Budget"])
+    else:
+        # Load existing sheets
+        sheets = existing_file.sheet_names
+
+        # Validate "Projects" sheet
+        if "Projects" not in sheets:
+            st.warning("'Projects' sheet missing. Reinitializing...")
+            writer_needed = True
+            projects_data = pd.DataFrame(columns=[
                 "Project ID", "Project Name", "Personnel", "Week", "Year", "Month",
                 "Budgeted Hrs", "Spent Hrs", "Remaining Hrs", "Cost/Hour", "Budgeted Cost",
                 "Remaining Cost", "Section", "Category"
-            ]).to_excel(writer, index=False, sheet_name="Projects")
-            pd.DataFrame(columns=["Project ID", "Project Name", "Approved Total Budget"]).to_excel(
-                writer, index=False, sheet_name="Approved Budgets"
-            )
+            ])
+        else:
+            projects_data = pd.read_excel(existing_file, sheet_name="Projects")
+
+        # Validate "Approved Budgets" sheet
+        if "Approved Budgets" not in sheets:
+            st.warning("'Approved Budgets' sheet missing. Reinitializing...")
+            writer_needed = True
+            approved_budgets_data = pd.DataFrame(columns=["Project ID", "Project Name", "Approved Total Budget"])
+        else:
+            approved_budgets_data = pd.read_excel(existing_file, sheet_name="Approved Budgets")
+
+    # Save back if changes were made
+    if writer_needed:
+        with pd.ExcelWriter("temp.xlsx", engine="openpyxl") as writer:
+            projects_data.to_excel(writer, index=False, sheet_name="Projects")
+            approved_budgets_data.to_excel(writer, index=False, sheet_name="Approved Budgets")
         with open("temp.xlsx", "rb") as f:
             dbx = dropbox.Dropbox(ACCESS_TOKEN)
             dbx.files_upload(f.read(), file_path, mode=dropbox.files.WriteMode("overwrite"))
+
+    return projects_data, approved_budgets_data
 
 # Generate Weeks for a Given Month
 def generate_weeks(year, month):
@@ -72,16 +103,7 @@ def main():
     st.title("Water & Environment Project Planning")
 
     # Ensure the projects file exists in Dropbox
-    ensure_dropbox_projects_file_exists(PROJECTS_FILE_PATH)
-
-    # Load Projects Data from Dropbox
-    projects_excel = download_from_dropbox(PROJECTS_FILE_PATH)
-    if projects_excel is None:
-        st.error("Failed to load project data from Dropbox.")
-        st.stop()
-
-    projects_data = pd.read_excel(projects_excel, sheet_name="Projects")
-    approved_budgets_data = pd.read_excel(projects_excel, sheet_name="Approved Budgets")
+    projects_data, approved_budgets_data = ensure_dropbox_projects_file_exists(PROJECTS_FILE_PATH)
 
     # Load Human Resources File from Dropbox
     hr_excel = download_from_dropbox(HR_FILE_PATH)
