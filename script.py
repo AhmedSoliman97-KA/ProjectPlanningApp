@@ -265,7 +265,11 @@ def main():
                             "Section": selected_section,
                             "Category": "N/A"
                         }])], ignore_index=True)
-
+      
+        # Define selected_year with a default value
+        selected_year = datetime.now().year  # Default year
+        # Logic for fetching/setting `selected_year
+       
         # Initialize updated_rows
         updated_rows = []  # Initialize here before appending
 
