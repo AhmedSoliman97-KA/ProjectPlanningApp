@@ -122,7 +122,7 @@ def main():
             engineer_details = engineers_data[engineers_data["Name"] == engineer].iloc[0]
             cost_per_hour = pd.to_numeric(engineer_details.get("Cost/Hour", 0), errors='coerce')
             cost_per_hour = cost_per_hour if not pd.isna(cost_per_hour) else 0
-            new_row = pd.DataFrame([{
+            allocations_template = pd.concat([allocations_template, pd.DataFrame([{
                 "Engineer": engineer,
                 "Week": "",
                 "Budgeted Hours": 0,
@@ -130,8 +130,7 @@ def main():
                 "Cost/Hour": cost_per_hour,
                 "Budgeted Cost": 0,
                 "Remaining Cost": 0
-        }])
-        allocations_template = pd.concat([allocations_template, new_row], ignore_index=True)
+            }])], ignore_index=True)
 
         gb = GridOptionsBuilder.from_dataframe(allocations_template)
         gb.configure_default_column(editable=True)
@@ -224,4 +223,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
