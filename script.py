@@ -131,78 +131,14 @@ def main():
                 col_list = st.columns(len(weeks))
                 budgeted_hours_inputs = {}
             
-                for idx, (week_label, col) in enumerate(zip(weeks.keys(), col_list)):
+                for idx, (week_label, col) in enumerate(zip(week_labels, col_list)):
                     with col:
-                        # Ensure unique keys using section, engineer, and week
-                        widget_key = f"budgeted_{selected_section}_{engineer}_{week_label}"
                         budgeted_hours_inputs[week_label] = st.number_input(
-                            f"Hours for {week_label}",
+                            f"Budgeted ({week_label})",
                             min_value=0,
                             step=1,
-                            key=widget_key  # Use unique key to avoid duplicates
+                            key=f"{engineer}_{week_label}_budgeted"
                         )
-            
-                    # Calculate and store budgeted cost
-                    budgeted_cost = budgeted_hours_inputs[week_label] * cost_per_hour
-                    if budgeted_hours_inputs[week_label] > 0:
-                        allocations.append({
-                            "Project ID": project_id,
-                            "Project Name": project_name,
-                            "Personnel": engineer,
-                            "Week": week_label,
-                            "Year": selected_year,
-                            "Month": ", ".join(selected_months),
-                            "Budgeted Hrs": budgeted_hours_inputs[week_label],
-                            "Remaining Hrs": budgeted_hours_inputs[week_label],
-                            "Cost/Hour": cost_per_hour,
-                            "Budgeted Cost": budgeted_cost,
-                            "Remaining Cost": budgeted_cost,
-                            "Section": engineer_details.get("Section", "Unknown"),
-                            "Category": engineer_details.get("Category", "N/A")
-                        })
-
-            
-                # Save allocation
-                # Generate weeks horizontally with unique keys
-                for engineer in selected_engineers:
-                    engineer_details = engineers_data[engineers_data["Name"] == engineer].iloc[0]
-                    cost_per_hour = pd.to_numeric(engineer_details.get("Cost/Hour", 0), errors="coerce")
-                    st.markdown(f"### Engineer: {engineer}")
-                
-                    # Create columns for weeks
-                    col_list = st.columns(len(weeks))
-                    budgeted_hours_inputs = {}
-                
-                    for idx, (week_label, col) in enumerate(zip(weeks.keys(), col_list)):
-                        with col:
-                            # Unique key using engineer and week
-                            widget_key = f"budgeted_{engineer}_{week_label}"
-                            budgeted_hours_inputs[week_label] = st.number_input(
-                                f"{week_label}",
-                                min_value=0,
-                                step=1,
-                                key=widget_key
-                            )
-                            budgeted_cost = budgeted_hours_inputs[week_label] * cost_per_hour
-                
-                            # Append allocation data
-                            if budgeted_hours_inputs[week_label] > 0:
-                                allocations.append({
-                                    "Project ID": project_id,
-                                    "Project Name": project_name,
-                                    "Personnel": engineer,
-                                    "Week": week_label,
-                                    "Year": selected_year,
-                                    "Month": selected_month,
-                                    "Budgeted Hrs": budgeted_hours_inputs[week_label],
-                                    "Remaining Hrs": budgeted_hours_inputs[week_label],
-                                    "Cost/Hour": cost_per_hour,
-                                    "Budgeted Cost": budgeted_cost,
-                                    "Remaining Cost": budgeted_cost,
-                                    "Section": engineer_details.get("Section", "Unknown"),
-                                    "Category": engineer_details.get("Category", "N/A")
-                                })
-
             
                         allocations.append({
                             "Project ID": project_id,
