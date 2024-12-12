@@ -15,17 +15,26 @@ HR_FILE_PATH = "/Project_Data/Human Resources.xlsx"
 
 # Function to Refresh Dropbox Access Token
 def get_access_token():
-    url = "https://api.dropbox.com/oauth2/token"
-    data = {
-        "grant_type": "refresh_token",
-        "refresh_token": REFRESH_TOKEN
-    }
-    auth = (APP_KEY, APP_SECRET)
-    response = requests.post(url, data=data, auth=auth)
-    if response.status_code == 200:
-        return response.json()["access_token"]
-    else:
-        raise Exception(f"Token Refresh Error: {response.json()}")
+    """Retrieve a new access token using the refresh token."""
+    try:
+        url = "https://api.dropbox.com/oauth2/token"
+        data = {
+            "grant_type": "refresh_token",
+            "refresh_token": REFRESH_TOKEN,
+        }
+        auth = (APP_KEY, APP_SECRET)
+
+        response = requests.post(url, data=data, auth=auth)
+
+        if response.status_code != 200:
+            st.error(f"Error refreshing token: {response.json()}")
+            raise Exception(f"Token Refresh Error: {response.json()}")
+
+        token_info = response.json()
+        return token_info.get("access_token")
+    except Exception as e:
+        st.error(f"Error in token refresh: {e}")
+        raise
 
 # Dropbox Functions
 def download_from_dropbox(file_path):
