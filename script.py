@@ -91,96 +91,107 @@ def main():
     st.sidebar.subheader("Actions")
     action = st.sidebar.radio("Choose an Action", ["Create New Project", "Update Existing Project"])
 
-    # Create New Project
-    if action == "Create New Project":
-        st.subheader("Create a New Project")
-        project_id = st.text_input("Project ID", help="Enter a unique ID for the project.")
-        project_name = st.text_input("Project Name", help="Enter the name of the project.")
-        selected_year = st.selectbox("Year", range(datetime.now().year - 5, datetime.now().year + 6), index=5)
-        selected_month = st.selectbox("Month", list(month_name)[1:], index=datetime.now().month - 1)
+if action == "Create New Project":
+    st.subheader("Create a New Project")
 
-        # Engineer Selection from Dropdown
-        st.subheader("Select Engineers for Allocation")
-        selected_section = st.selectbox("Choose a Section", hr_sections)
-        engineers_data = hr_excel.parse(sheet_name=selected_section)
-        engineers = engineers_data["Name"].dropna().tolist()
-        selected_engineers = st.multiselect("Choose Engineers", options=engineers, help="Select engineers to allocate hours.")
+    # Project details input
+    project_id = st.text_input("Project ID", help="Enter a unique ID for the project.")
+    project_name = st.text_input("Project Name", help="Enter the name of the project.")
+    approved_budget = st.number_input("Approved Total Budget (in $)", min_value=0, step=1)
 
-        allocations = []
+    # Year and month selection
+    selected_year = st.selectbox("Year", range(datetime.now().year - 5, datetime.now().year + 6), index=5)
+    selected_month = st.selectbox("Month", list(month_name)[1:], index=datetime.now().month - 1)
 
-        if selected_engineers:
-            st.subheader("Allocate Weekly Hours")
+    # Engineer selection
+    st.subheader("Select Engineers for Allocation")
+    selected_section = st.selectbox("Choose a Section", hr_sections)
+    engineers_data = hr_excel.parse(sheet_name=selected_section)
+    engineers = engineers_data["Name"].dropna().tolist()
+    selected_engineers = st.multiselect("Choose Engineers", options=engineers, help="Select engineers to allocate hours.")
 
-            # Generate Weeks
-            weeks = generate_weeks(selected_year, list(month_name).index(selected_month))
+    allocations = []
+    total_allocated_budget = 0
 
-            for engineer in selected_engineers:
-                # Fetch engineer details from Human Resources file
-                engineer_details = engineers_data[engineers_data["Name"] == engineer].iloc[0]
-                section = engineer_details.get("Section", "Unknown")
-                category = engineer_details.get("Category", "N/A")
-                cost_per_hour = pd.to_numeric(engineer_details.get("Cost/Hour", 0), errors='coerce')
-                cost_per_hour = cost_per_hour if not pd.isna(cost_per_hour) else 0
+    if selected_engineers:
+        st.subheader("Allocate Weekly Hours")
 
-                st.markdown(f"### Engineer: {engineer}")
-                for week_label, _ in weeks:
-                    budgeted_hours = st.number_input(
-                        f"Budgeted Hours ({week_label}) for {engineer}",
-                        min_value=0,
-                        step=1,
-                        key=f"{engineer}_{week_label}"
-                    )
-                    if budgeted_hours > 0:
-                        spent_hours = 0
-                        remaining_hours = budgeted_hours - spent_hours
-                        budgeted_cost = budgeted_hours * cost_per_hour
-                        remaining_cost = remaining_hours * cost_per_hour
+        # Generate Weeks
+        weeks = generate_weeks(selected_year, list(month_name).index(selected_month))
 
-                        allocations.append({
-                            "Project ID": project_id,
-                            "Project Name": project_name,
-                            "Personnel": engineer,
-                            "Week": week_label,
-                            "Year": selected_year,
-                            "Month": selected_month,
-                            "Budgeted Hrs": budgeted_hours,
-                            "Spent Hrs": spent_hours,
-                            "Remaining Hrs": remaining_hours,
-                            "Cost/Hour": cost_per_hour,
-                            "Budgeted Cost": budgeted_cost,
-                            "Remaining Cost": remaining_cost,
-                            "Section": section,
-                            "Category": category
-                        })
+        for engineer in selected_engineers:
+            # Fetch engineer details from Human Resources file
+            engineer_details = engineers_data[engineers_data["Name"] == engineer].iloc[0]
+            section = engineer_details.get("Section", "Unknown")
+            category = engineer_details.get("Category", "N/A")
+            cost_per_hour = pd.to_numeric(engineer_details.get("Cost/Hour", 0), errors='coerce')
+            cost_per_hour = cost_per_hour if not pd.isna(cost_per_hour) else 0
 
-        # Display Summary Allocation
-        if allocations:
-            st.subheader("Summary of Allocations")
-            allocation_df = pd.DataFrame(allocations)
-            st.dataframe(allocation_df)
-            total_budgeted = allocation_df["Budgeted Hrs"].sum()
-            st.metric("Total Budgeted Hours", total_budgeted)
+            st.markdown(f"### Engineer: {engineer}")
+            for week_label, _ in weeks:
+                budgeted_hours = st.number_input(
+                    f"Budgeted Hours ({week_label}) for {engineer}",
+                    min_value=0,
+                    step=1,
+                    key=f"{engineer}_{week_label}"
+                )
+                if budgeted_hours > 0:
+                    spent_hours = 0
+                    remaining_hours = budgeted_hours - spent_hours
+                    budgeted_cost = budgeted_hours * cost_per_hour
+                    remaining_cost = remaining_hours * cost_per_hour
 
-        # Submit Button
-        if st.button("Submit Project"):
-            new_data = pd.DataFrame(allocations)
-            new_data["Composite Key"] = (
-                new_data["Project ID"] + "_" +
-                new_data["Project Name"] + "_" +
-                new_data["Personnel"] + "_" +
-                new_data["Week"]
-            )
-            projects_data["Composite Key"] = (
-                projects_data["Project ID"] + "_" +
-                projects_data["Project Name"] + "_" +
-                projects_data["Personnel"] + "_" +
-                projects_data["Week"]
-            )
-            updated_data = projects_data[~projects_data["Composite Key"].isin(new_data["Composite Key"])]
-            updated_data = pd.concat([updated_data, new_data], ignore_index=True)
-            updated_data.drop(columns=["Composite Key"], inplace=True)
-            upload_to_dropbox(updated_data, PROJECTS_FILE_PATH)
-            st.success("Project submitted successfully!")
+                    total_allocated_budget += budgeted_cost
+
+                    allocations.append({
+                        "Project ID": project_id,
+                        "Project Name": project_name,
+                        "Personnel": engineer,
+                        "Week": week_label,
+                        "Year": selected_year,
+                        "Month": selected_month,
+                        "Budgeted Hrs": budgeted_hours,
+                        "Spent Hrs": spent_hours,
+                        "Remaining Hrs": remaining_hours,
+                        "Cost/Hour": cost_per_hour,
+                        "Budgeted Cost": budgeted_cost,
+                        "Remaining Cost": remaining_cost,
+                        "Section": section,
+                        "Category": category
+                    })
+
+    # Display Allocation Summary and Comparison
+    if allocations:
+        st.subheader("Summary of Allocations")
+        allocation_df = pd.DataFrame(allocations)
+        st.dataframe(allocation_df)
+
+        # Display Total Allocated Budget
+        st.metric("Total Allocated Budget (in $)", f"${total_allocated_budget:,.2f}")
+        st.metric("Approved Total Budget (in $)", f"${approved_budget:,.2f}")
+        st.metric("Difference (Remaining/Over-Allocated)", f"${approved_budget - total_allocated_budget:,.2f}")
+
+    # Submit Button
+    if st.button("Submit Project"):
+        new_data = pd.DataFrame(allocations)
+        new_data["Composite Key"] = (
+            new_data["Project ID"] + "_" +
+            new_data["Project Name"] + "_" +
+            new_data["Personnel"] + "_" +
+            new_data["Week"]
+        )
+        projects_data["Composite Key"] = (
+            projects_data["Project ID"] + "_" +
+            projects_data["Project Name"] + "_" +
+            projects_data["Personnel"] + "_" +
+            projects_data["Week"]
+        )
+        updated_data = projects_data[~projects_data["Composite Key"].isin(new_data["Composite Key"])]
+        updated_data = pd.concat([updated_data, new_data], ignore_index=True)
+        updated_data.drop(columns=["Composite Key"], inplace=True)
+        upload_to_dropbox(updated_data, PROJECTS_FILE_PATH)
+        st.success("Project submitted successfully!")
+
 
     # Update Existing Project
     if action == "Update Existing Project":
