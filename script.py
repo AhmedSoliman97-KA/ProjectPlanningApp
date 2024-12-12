@@ -235,85 +235,118 @@ def main():
         st.metric("Current Budgeted Cost", f"${current_budgeted_cost:,.2f}")
         st.metric("Current Spent Cost", f"${current_spent_cost:,.2f}")
 
-        st.subheader("Add or Update Allocations")
+        # Step 4: Select Engineer for Update or Add New Engineer
+        st.subheader("Select Engineer")
+        engineer_options = list(project_details["Personnel"].unique()) + ["Add New Engineer"]
+        selected_engineer = st.selectbox("Choose an Engineer", engineer_options)
 
+        # Add New Engineer Logic
+        if selected_engineer == "Add New Engineer":
+            st.subheader("Add New Engineer")
+            new_engineers = st.multiselect("Choose New Engineers", options=hr_excel.parse(sheet_name=selected_section)["Name"].dropna().tolist())
+
+            for new_engineer in new_engineers:
+                if new_engineer not in project_details["Personnel"].values:
+                    project_details = pd.concat([project_details, pd.DataFrame([{
+                        "Project ID": project_details.iloc[0]["Project ID"],
+                        "Project Name": project_details.iloc[0]["Project Name"],
+                        "Personnel": new_engineer,
+                        "Week": None,
+                        "Year": None,
+                        "Month": None,
+                        "Budgeted Hrs": 0,
+                        "Spent Hrs": 0,
+                        "Remaining Hrs": 0,
+                        "Cost/Hour": 0,
+                        "Budgeted Cost": 0,
+                        "Remaining Cost": 0,
+                        "Section": selected_section,
+                        "Category": None
+                    }])])
+
+        # Step 5: Update Allocations for Each Week
+        st.subheader(f"Update Allocations for {selected_engineer}")
         updated_rows = []
-        available_engineers = project_details["Personnel"].unique().tolist()
-        all_engineers = engineers_data["Name"].dropna().tolist()
-        selectable_engineers = list(set(all_engineers) - set(available_engineers))
 
-        add_engineer = st.radio("Do you want to add a new engineer?", ["No", "Yes"])
-        if add_engineer == "Yes":
-            new_engineer = st.selectbox("Choose a new engineer", selectable_engineers)
-            available_engineers.append(new_engineer)
+        # Only display unique weeks for the selected engineer
+        engineer_details = project_details[project_details["Personnel"] == selected_engineer]
+        weeks = engineer_details["Week"].unique()
 
-        for engineer in available_engineers:
-            engineer_details = engineers_data[engineers_data["Name"] == engineer].iloc[0]
-            section = engineer_details.get("Section", "Unknown")
-            category = engineer_details.get("Category", "N/A")
-            cost_per_hour = pd.to_numeric(engineer_details.get("Cost/Hour", 0), errors='coerce')
-            cost_per_hour = cost_per_hour if not pd.isna(cost_per_hour) else 0
+        for week in weeks:
+            existing_allocation = engineer_details[engineer_details["Week"] == week].iloc[0] if not engineer_details.empty else {}
+            updated_budgeted = st.number_input(
+                f"Budgeted Hours ({week})",
+                min_value=0,
+                value=int(existing_allocation.get("Budgeted Hrs", 0)),
+                step=1,
+                key=f"update_budgeted_{selected_engineer}_{week}"
+            )
+            updated_spent = st.number_input(
+                f"Spent Hours ({week})",
+                min_value=0,
+                value=int(existing_allocation.get("Spent Hrs", 0)),
+                step=1,
+                key=f"update_spent_{selected_engineer}_{week}"
+            )
+            remaining_hours = updated_budgeted - updated_spent
+            cost_per_hour = existing_allocation.get("Cost/Hour", 0)
+            budgeted_cost = updated_budgeted * cost_per_hour
+            spent_cost = updated_spent * cost_per_hour
 
-            engineer_allocations = project_details[project_details["Personnel"] == engineer]
+            updated_rows.append({
+                "Project ID": existing_allocation.get("Project ID", ""),
+                "Project Name": existing_allocation.get("Project Name", ""),
+                "Personnel": selected_engineer,
+                "Week": week,
+                "Year": existing_allocation.get("Year", None),
+                "Month": existing_allocation.get("Month", None),
+                "Budgeted Hrs": updated_budgeted,
+                "Spent Hrs": updated_spent,
+                "Remaining Hrs": remaining_hours,
+                "Cost/Hour": cost_per_hour,
+                "Budgeted Cost": budgeted_cost,
+                "Remaining Cost": budgeted_cost - spent_cost,
+                "Section": existing_allocation.get("Section", ""),
+                "Category": existing_allocation.get("Category", "")
+            })
 
-            for _, row in engineer_allocations.iterrows():
-                updated_budgeted = st.number_input(
-                    f"Updated Budgeted Hours ({row['Week']}) for {engineer}",
-                    min_value=0,
-                    value=row["Budgeted Hrs"],
-                    step=1,
-                    key=f"update_budgeted_{engineer}_{row['Week']}"
-                )
+        # Metrics for Updated Allocations
+        st.subheader("Updated Allocations for Selected Project")
+        updated_df = pd.DataFrame(updated_rows)
+        st.dataframe(updated_df)
 
-                updated_spent = st.number_input(
-                    f"Updated Spent Hours ({row['Week']}) for {engineer}",
-                    min_value=0,
-                    value=row["Spent Hrs"],
-                    step=1,
-                    key=f"update_spent_{engineer}_{row['Week']}"
-                )
+        updated_budgeted_hours = updated_df["Budgeted Hrs"].sum()
+        updated_spent_hours = updated_df["Spent Hrs"].sum()
+        updated_budgeted_cost = updated_df["Budgeted Cost"].sum()
+        updated_spent_cost = updated_df["Spent Hrs"].sum() * updated_df["Cost/Hour"].sum()
 
-                remaining_hours = updated_budgeted - updated_spent
-                budgeted_cost = updated_budgeted * cost_per_hour
-                remaining_cost = remaining_hours * cost_per_hour
+        st.metric("Updated Budgeted Hours", f"{updated_budgeted_hours} hrs")
+        st.metric("Updated Spent Hours", f"{updated_spent_hours} hrs")
+        st.metric("Updated Budgeted Cost", f"${updated_budgeted_cost:,.2f}")
+        st.metric("Updated Spent Cost", f"${updated_spent_cost:,.2f}")
 
-                updated_rows.append({
-                    "Project ID": row["Project ID"],
-                    "Project Name": row["Project Name"],
-                    "Personnel": engineer,
-                    "Week": row["Week"],
-                    "Year": row["Year"],
-                    "Month": row["Month"],
-                    "Budgeted Hrs": updated_budgeted,
-                    "Spent Hrs": updated_spent,
-                    "Remaining Hrs": remaining_hours,
-                    "Cost/Hour": cost_per_hour,
-                    "Budgeted Cost": budgeted_cost,
-                    "Remaining Cost": remaining_cost,
-                    "Section": section,
-                    "Category": category
-                })
+        # Save Updates
+        if st.button("Save Updates"):
+            updated_rows_df = pd.DataFrame(updated_rows)
+            updated_rows_df["Composite Key"] = (
+                updated_rows_df["Project ID"] + "_" +
+                updated_rows_df["Project Name"] + "_" +
+                updated_rows_df["Personnel"] + "_" +
+                updated_rows_df["Week"]
+            )
+            projects_data["Composite Key"] = (
+                projects_data["Project ID"] + "_" +
+                projects_data["Project Name"] + "_" +
+                projects_data["Personnel"] + "_" +
+                projects_data["Week"]
+            )
+            remaining_data = projects_data[~projects_data["Composite Key"].isin(updated_rows_df["Composite Key"])]
+            final_data = pd.concat([remaining_data, updated_rows_df], ignore_index=True)
+            final_data.drop(columns=["Composite Key"], inplace=True)
 
-        if updated_rows:
-            st.subheader("Updated Allocations for Selected Project")
-            updated_df = pd.DataFrame(updated_rows)
-            st.dataframe(updated_df)
-
-            total_updated_budgeted_hours = updated_df["Budgeted Hrs"].sum()
-            total_updated_spent_hours = updated_df["Spent Hrs"].sum()
-            total_updated_budgeted_cost = updated_df["Budgeted Cost"].sum()
-            total_updated_spent_cost = (updated_df["Spent Hrs"] * updated_df["Cost/Hour"]).sum()
-
-            st.metric("Updated Budgeted Hours", f"{total_updated_budgeted_hours} hrs")
-            st.metric("Updated Spent Hours", f"{total_updated_spent_hours} hrs")
-            st.metric("Updated Budgeted Cost", f"${total_updated_budgeted_cost:,.2f}")
-            st.metric("Updated Spent Cost", f"${total_updated_spent_cost:,.2f}")
-
-            if st.button("Save Updates"):
-                updated_rows_df = pd.DataFrame(updated_rows)
-                projects_data.update(updated_rows_df)
-                upload_to_dropbox(projects_data, PROJECTS_FILE_PATH)
-                st.success("Project updates saved successfully!")
+            # Upload updated data back to Dropbox
+            upload_to_dropbox(final_data, PROJECTS_FILE_PATH)
+            st.success(f"Updates to '{selected_project}' saved successfully!")
 
 if __name__ == "__main__":
     main()
