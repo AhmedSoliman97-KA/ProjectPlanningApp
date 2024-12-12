@@ -189,7 +189,7 @@ def main():
                             "Personnel": engineer,
                             "Week": week_label,
                             "Year": selected_year,
-                            "selected_months" = st.multiselect("Months", list(month_name)[1:], default=[month_name[datetime.now().month]]),
+                            selected_months = st.multiselect("Months", list(month_name)[1:], default=[month_name[datetime.now().month]])
                             "Budgeted Hrs": budgeted_hours,
                             "Remaining Hrs": budgeted_hours,
                             "Cost/Hour": cost_per_hour,
