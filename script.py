@@ -201,7 +201,7 @@ def main():
                 st.success("Project submitted successfully!")
 
     # Update Existing Project
-if action == "Update Existing Project":
+    if action == "Update Existing Project":
     st.subheader("Update an Existing Project")
 
     # Step 1: Section Selection
