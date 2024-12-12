@@ -202,9 +202,118 @@ def main():
 
     # Update Existing Project
     if action == "Update Existing Project":
-        # Refer to previous detailed section above for this part of the implementation.
-        pass  # Place the "Update Existing Project" logic here.
+        st.subheader("Update an Existing Project")
+
+        # Step 1: Section Selection
+        st.subheader("Select Section")
+        selected_section = st.selectbox("Choose a Section", hr_sections)
+
+        # Filter Projects by Selected Section
+        filtered_projects = projects_data[projects_data["Section"] == selected_section]
+
+        if filtered_projects.empty:
+            st.warning(f"No projects found for the section: {selected_section}.")
+            st.stop()
+
+        # Step 2: Select Project
+        st.subheader("Select a Project")
+        selected_project = st.selectbox("Choose a Project", filtered_projects["Project Name"].unique())
+        project_details = filtered_projects[filtered_projects["Project Name"] == selected_project]
+
+        # Step 3: Display Current Allocations for the Selected Project
+        st.subheader("Current Allocations for Selected Project")
+        st.dataframe(project_details)
+
+        # Metrics for Current Allocations
+        current_budgeted_hours = project_details["Budgeted Hrs"].sum()
+        current_spent_hours = project_details["Spent Hrs"].sum()
+        current_budgeted_cost = project_details["Budgeted Cost"].sum()
+        current_spent_cost = (project_details["Spent Hrs"] * project_details["Cost/Hour"]).sum()
+
+        st.metric("Current Budgeted Hours", f"{current_budgeted_hours} hrs")
+        st.metric("Current Spent Hours", f"{current_spent_hours} hrs")
+        st.metric("Current Budgeted Cost", f"${current_budgeted_cost:,.2f}")
+        st.metric("Current Spent Cost", f"${current_spent_cost:,.2f}")
+
+        st.subheader("Add or Update Allocations")
+
+        updated_rows = []
+        available_engineers = project_details["Personnel"].unique().tolist()
+        all_engineers = engineers_data["Name"].dropna().tolist()
+        selectable_engineers = list(set(all_engineers) - set(available_engineers))
+
+        add_engineer = st.radio("Do you want to add a new engineer?", ["No", "Yes"])
+        if add_engineer == "Yes":
+            new_engineer = st.selectbox("Choose a new engineer", selectable_engineers)
+            available_engineers.append(new_engineer)
+
+        for engineer in available_engineers:
+            engineer_details = engineers_data[engineers_data["Name"] == engineer].iloc[0]
+            section = engineer_details.get("Section", "Unknown")
+            category = engineer_details.get("Category", "N/A")
+            cost_per_hour = pd.to_numeric(engineer_details.get("Cost/Hour", 0), errors='coerce')
+            cost_per_hour = cost_per_hour if not pd.isna(cost_per_hour) else 0
+
+            engineer_allocations = project_details[project_details["Personnel"] == engineer]
+
+            for _, row in engineer_allocations.iterrows():
+                updated_budgeted = st.number_input(
+                    f"Updated Budgeted Hours ({row['Week']}) for {engineer}",
+                    min_value=0,
+                    value=row["Budgeted Hrs"],
+                    step=1,
+                    key=f"update_budgeted_{engineer}_{row['Week']}"
+                )
+
+                updated_spent = st.number_input(
+                    f"Updated Spent Hours ({row['Week']}) for {engineer}",
+                    min_value=0,
+                    value=row["Spent Hrs"],
+                    step=1,
+                    key=f"update_spent_{engineer}_{row['Week']}"
+                )
+
+                remaining_hours = updated_budgeted - updated_spent
+                budgeted_cost = updated_budgeted * cost_per_hour
+                remaining_cost = remaining_hours * cost_per_hour
+
+                updated_rows.append({
+                    "Project ID": row["Project ID"],
+                    "Project Name": row["Project Name"],
+                    "Personnel": engineer,
+                    "Week": row["Week"],
+                    "Year": row["Year"],
+                    "Month": row["Month"],
+                    "Budgeted Hrs": updated_budgeted,
+                    "Spent Hrs": updated_spent,
+                    "Remaining Hrs": remaining_hours,
+                    "Cost/Hour": cost_per_hour,
+                    "Budgeted Cost": budgeted_cost,
+                    "Remaining Cost": remaining_cost,
+                    "Section": section,
+                    "Category": category
+                })
+
+        if updated_rows:
+            st.subheader("Updated Allocations for Selected Project")
+            updated_df = pd.DataFrame(updated_rows)
+            st.dataframe(updated_df)
+
+            total_updated_budgeted_hours = updated_df["Budgeted Hrs"].sum()
+            total_updated_spent_hours = updated_df["Spent Hrs"].sum()
+            total_updated_budgeted_cost = updated_df["Budgeted Cost"].sum()
+            total_updated_spent_cost = (updated_df["Spent Hrs"] * updated_df["Cost/Hour"]).sum()
+
+            st.metric("Updated Budgeted Hours", f"{total_updated_budgeted_hours} hrs")
+            st.metric("Updated Spent Hours", f"{total_updated_spent_hours} hrs")
+            st.metric("Updated Budgeted Cost", f"${total_updated_budgeted_cost:,.2f}")
+            st.metric("Updated Spent Cost", f"${total_updated_spent_cost:,.2f}")
+
+            if st.button("Save Updates"):
+                updated_rows_df = pd.DataFrame(updated_rows)
+                projects_data.update(updated_rows_df)
+                upload_to_dropbox(projects_data, PROJECTS_FILE_PATH)
+                st.success("Project updates saved successfully!")
 
 if __name__ == "__main__":
     main()
-
