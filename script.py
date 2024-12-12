@@ -10,7 +10,6 @@ ACCESS_TOKEN = "sl.u.AFY76MVKUHTIGBfqYRqzrPnV19H8Jly5Q-tt5U5r4S1GA9eEq4L_Kn32TGZ
 PROJECTS_FILE_PATH = "/Project_Data/projects_data_weekly.xlsx"
 HR_FILE_PATH = "/Project_Data/Human Resources.xlsx"
 
-
 # Dropbox Functions
 def download_from_dropbox(file_path):
     """Download a file from Dropbox."""
@@ -57,7 +56,7 @@ def generate_weeks(year, month):
     weeks = []
     while start_date < end_date:
         week_label = f"Week {start_date.isocalendar()[1]} ({start_date.strftime('%b')})"
-        weeks.append((week_label, start_date))
+        weeks.append(week_label)
         start_date += timedelta(days=7)
     return weeks
 
@@ -127,7 +126,7 @@ def main():
         gb.configure_column("Engineer", editable=False)
         grid_options = gb.build()
 
-        response = AgGrid(allocations_template, gridOptions=grid_options, update_mode='MANUAL')
+        response = AgGrid(allocations_template, gridOptions=grid_options, update_mode=GridUpdateMode.MANUAL)
         updated_data = pd.DataFrame(response['data'])
 
         st.subheader("Summary of Allocations")
@@ -170,7 +169,7 @@ def main():
         gb = GridOptionsBuilder.from_dataframe(project_details)
         gb.configure_default_column(editable=True)
         grid_options = gb.build()
-        response = AgGrid(project_details, gridOptions=grid_options, update_mode='MANUAL')
+        response = AgGrid(project_details, gridOptions=grid_options, update_mode=GridUpdateMode.MANUAL)
         updated_project_data = pd.DataFrame(response['data'])
 
         if st.button("Save Updates"):
