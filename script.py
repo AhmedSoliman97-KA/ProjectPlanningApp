@@ -60,7 +60,6 @@ def upload_to_dropbox(df, dropbox_path):
 
 # Main Application
 def main():
-    # Your existing code here
-
-    if __name__ == "__main__":
+# Your existing code here
+if __name__ == "__main__":
     main()
