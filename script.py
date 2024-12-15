@@ -17,10 +17,6 @@ from calendar import month_name
 import dropbox
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 
-# Dropbox Settings
-ACCESS_TOKEN = "sl.u.AFY76MVKUHTIGBfqYRqzrPnV19H8Jly5Q-tt5U5r4S1GA9eEq4L_Kn32TGZIEbQjrgEzWWVdAsXyRdEfhOge_Z_K6_M3Z3_Sgr8a_PdXLM82FcXlGTEZoTPH4l9w5vyiIhgIkW0Tq2sE1_6_ajKdhlTeNir06bi_r3XcSR_w9A9AB_4i9CEjwmxgRf_w1zc_rN_d1VBRzhbUJn9yjAsut_J5r0I2RovfSWAFJo6RQcyInPygr2RJLbB0CJqqpQ4z09FHQdwtxtaSzhv68KiQWI8YaNMrcW642Pnu6iQm-oNRXzfXLaVjx6uca_H9Uxmcgx1v-J3_BXNJmjVRHCILAr1aRqtlkZlZd6Qz48924Q5i1vt_MY10gfejguPXKsy_omhQ-4W3FeYLXLNwWcv2cZpBtN0TRRhaLXmxpgfEACcGmpoZNWcrbgjF0wSfWag1vBl-p4NmcXneDhi93PLlLvDNPCN0rAazCiCfK710dwSE1Cz7KcdPW-frmu3CJQewcwL6-znetdFTVdbspL4pNKKktsU9DL0rAY-XVymvyTqpBRTD6Db3oCn3MVtIqxUQQPiNTjQ-T1BB5bls3DdS-ToWaYpQyDslzbYg5BBTcG2oVcCa7W4TbY9yc6KdbiiDyU3pxzuXXDE8mgNGwxauJQrdJt992Pb5stjMxKiY5BnHh6va-yleyZuxbkaldXiAqrwUkhJcwOxf7TE6iA-NIQAzsRleD4OIB8SDBDQfMeBtjXAeuG6I91XhyNgdGOYG8cuwBMSKXDrpqT8p1BIIY9zay0rbBEAOzPJBS4NLJxJL7VR12JpVugHLax3r6TzoQhSPuhvS6EMLQ9PWoKaWaN_tYlSj2wpZDO4jRj5nsIIu1KogQtvKwmVyEd9aIVYmnL95w9iOKKoe5XItbQOtLUwele8S_vmEBheVBSYI-ad9fEZBwCq4CJQ9wOyljRYshassdeBFnK7mx37C1Pr8Nc1sZTQzlEU2OGuP3R2ed3G1y9TL2jNm_K0uxAu4lNIzUg3NgF8Os8FfwFeEQ1DhBjzfeN8Qj4ANOx9VAHYHqFbINQNueg12G0g6rZUSGpCFkHS1g5qwfkJ_UXW32KCkDB0Zbw5VppSulisrwMkbz0HEy7c1cIcoJGG8ac-9cwNePtFc_q8vLdbbDyIr0ryusyYPfRHyQmPTyd6-WODowFqoivxC_1sEz87Xt4oEYRIemtdqEWrznsd_EiTvvWEWtqpmIgjK-2MAJl_tFh_x-6MoXYdplrbJFRVPvlWS_32R_4GOoEIncxJ8IYF3c1VtC7F-iOvSBKTDQPKlhLya_xa54bb6PvyqU4R1drmYWrGzpR0JZR39v-PIlOPlvMm0mM7Fn1ZvkVBOl9c0LXFyZP94fn8NYGE1hfubQHnIG0t_fudUCRvnhVBmyOqiy4HkG-EWnKyFvwoN5GArvtvsmn9wHfG6QjynggOHjJx_YS3h9FI"
-PROJECTS_FILE_PATH = "/Project_Data/projects_data_weekly.xlsx"
-HR_FILE_PATH = "/Project_Data/Human Resources.xlsx"
 # Dropbox Functions
 def download_from_dropbox(file_path):
     """Download a file from Dropbox."""
@@ -214,30 +210,30 @@ def main():
         # Step 4: Select Engineers
         st.subheader("Select Engineers to Update Allocations")
         engineer_options = list(project_details["Personnel"].unique()) + ["Add New Engineer"]
-        selected_engineers = st.multiselect("Choose Engineers", engineer_options, default=engine_options[:-1])
+        selected_engineers = st.multiselect("Choose Engineers", engineer_options, default=engineer_options[:-1])
 
         updated_rows = []
         # Add New Engineer Logic
         if "Add New Engineer" in selected_engineers:
             new_engineers = st.multiselect("Choose New Engineers", options=hr_excel.parse(sheet_name=selected_section)["Name"].dropna().tolist())
-                        for engineer in new_engineers:
-                            if engineer not in project_details["Personnel"].values:
-                                project_details = pd.concat([project_details, pd.DataFrame([{
-                                    "Project ID": selected_project,
-                                    "Project Name": project_details.iloc[0]["Project Name"],
-                                    "Personnel": engineer,
-                                    "Week": None,
-                                    "Year": None,
-                                    "Month": None,
-                                    "Budgeted Hrs": 0,
-                                    "Spent Hrs": 0,
-                                    "Remaining Hrs": 0,
-                                    "Cost/Hour": 0,
-                                    "Budgeted Cost": 0,
-                                    "Remaining Cost": 0,
-                                    "Section": selected_section,
-                                    "Category": "N/A"
-                                }])])
+            for engineer in new_engineers:
+                if engineer not in project_details["Personnel"].values:
+                    project_details = pd.concat([project_details, pd.DataFrame([{
+                        "Project ID": selected_project,
+                        "Project Name": project_details.iloc[0]["Project Name"],
+                        "Personnel": engineer,
+                        "Week": None,
+                        "Year": None,
+                        "Month": None,
+                        "Budgeted Hrs": 0,
+                        "Spent Hrs": 0,
+                        "Remaining Hrs": 0,
+                        "Cost/Hour": 0,
+                        "Budgeted Cost": 0,
+                        "Remaining Cost": 0,
+                        "Section": selected_section,
+                        "Category": "N/A"
+                    }])])
 
         # Step 5: Update Allocations for Each Selected Engineer
         st.subheader("Update Allocations")
@@ -260,10 +256,11 @@ def main():
             st.markdown("### Budgeted Hours")
             for idx, (week, col) in enumerate(zip(weeks, col_list_budgeted)):
                 existing_allocation = engineer_details[engineer_details["Week"] == week].iloc[0]
+
                 with col:
                     widget_key_budgeted = f"updated_budgeted_{selected_section}_{engineer}_{week}"
                     updated_budgeted_inputs[week] = st.number_input(
-                        f"Budgeted ({week})",
+                        f"Budgeted Hours ({week})",
                         min_value=0,
                         value=int(existing_allocation.get("Budgeted Hrs", 0)),
                         step=1,
@@ -273,10 +270,11 @@ def main():
             st.markdown("### Spent Hours")
             for idx, (week, col) in enumerate(zip(weeks, col_list_spent)):
                 existing_allocation = engineer_details[engineer_details["Week"] == week].iloc[0]
+
                 with col:
                     widget_key_spent = f"updated_spent_{selected_section}_{engineer}_{week}"
                     updated_spent_inputs[week] = st.number_input(
-                        f"Spent ({week})",
+                        f"Spent Hours ({week})",
                         min_value=0,
                         value=int(existing_allocation.get("Spent Hrs", 0)),
                         step=1,
@@ -284,9 +282,9 @@ def main():
                     )
 
             for week in weeks:
-                updated_budgeted = updated_budgeted_inputs.get(week, 0)
-                updated_spent = updated_spent_inputs.get(week, 0)
-                existing_allocation = engineer_details[engineer_details["Week"] == week].iloc[0] if not engineer_details.empty else {}
+                updated_budgeted = updated_budgeted_inputs[week]
+                updated_spent = updated_spent_inputs[week]
+                existing_allocation = engineer_details[engineer_details["Week"] == week].iloc[0]
                 cost_per_hour = existing_allocation.get("Cost/Hour", 0)
                 budgeted_cost = updated_budgeted * cost_per_hour
                 spent_cost = updated_spent * cost_per_hour
@@ -309,31 +307,15 @@ def main():
                     "Category": existing_allocation.get("Category", "N/A")
                 })
 
-        st.subheader("Updated Allocations")
-        updated_df = pd.DataFrame(updated_rows)
-        st.dataframe(updated_df)
+        if updated_rows:
+            updated_df = pd.DataFrame(updated_rows)
+            st.subheader("Updated Allocations")
+            st.dataframe(updated_df)
 
-        if st.button("Save Updates"):
-            updated_rows_df = pd.DataFrame(updated_rows)
-            updated_rows_df["Composite Key"] = (
-                updated_rows_df["Project ID"] + "_" +
-                updated_rows_df["Project Name"] + "_" +
-                updated_rows_df["Personnel"] + "_" +
-                updated_rows_df["Week"]
-            )
-            projects_data["Composite Key"] = (
-                projects_data["Project ID"] + "_" +
-                projects_data["Project Name"] + "_" +
-                projects_data["Personnel"] + "_" +
-                projects_data["Week"]
-            )
-            remaining_data = projects_data[~projects_data["Composite Key"].isin(updated_rows_df["Composite Key"])]
-            final_data = pd.concat([remaining_data, updated_rows_df], ignore_index=True)
-            final_data.drop(columns=["Composite Key"], inplace=True)
-
-            upload_to_dropbox(final_data, PROJECTS_FILE_PATH)
-            st.success(f"Updates to '{selected_project}' saved successfully!")
+            if st.button("Save Updates"):
+                upload_to_dropbox(updated_df, PROJECTS_FILE_PATH)
+                st.success(f"Updates to project '{selected_project}' have been saved!")
 
 if __name__ == "__main__":
     main()
-              
+
