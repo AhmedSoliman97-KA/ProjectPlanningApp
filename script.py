@@ -221,23 +221,23 @@ def main():
         if "Add New Engineer" in selected_engineers:
             new_engineers = st.multiselect("Choose New Engineers", options=hr_excel.parse(sheet_name=selected_section)["Name"].dropna().tolist())
                         for engineer in new_engineers:
-                if engineer not in project_details["Personnel"].values:
-                    project_details = pd.concat([project_details, pd.DataFrame([{
-                        "Project ID": selected_project,
-                        "Project Name": project_details.iloc[0]["Project Name"],
-                        "Personnel": engineer,
-                        "Week": None,
-                        "Year": None,
-                        "Month": None,
-                        "Budgeted Hrs": 0,
-                        "Spent Hrs": 0,
-                        "Remaining Hrs": 0,
-                        "Cost/Hour": 0,
-                        "Budgeted Cost": 0,
-                        "Remaining Cost": 0,
-                        "Section": selected_section,
-                        "Category": "N/A"
-                    }])])
+                            if engineer not in project_details["Personnel"].values:
+                                project_details = pd.concat([project_details, pd.DataFrame([{
+                                    "Project ID": selected_project,
+                                    "Project Name": project_details.iloc[0]["Project Name"],
+                                    "Personnel": engineer,
+                                    "Week": None,
+                                    "Year": None,
+                                    "Month": None,
+                                    "Budgeted Hrs": 0,
+                                    "Spent Hrs": 0,
+                                    "Remaining Hrs": 0,
+                                    "Cost/Hour": 0,
+                                    "Budgeted Cost": 0,
+                                    "Remaining Cost": 0,
+                                    "Section": selected_section,
+                                    "Category": "N/A"
+                                }])])
 
         # Step 5: Update Allocations for Each Selected Engineer
         st.subheader("Update Allocations")
@@ -336,5 +336,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
+              
